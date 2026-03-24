@@ -3,15 +3,21 @@
 <head>
   <meta charset="UTF-8">
   <title>РазвиТайм — все занятия ваших детей в одном расписании</title>
+
+  <!-- Шрифт Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
   <link rel="stylesheet" href="styles.css">
 </head>
+
 <body>
 
 <!-- ШАПКА -->
 <header class="app-header">
   <div class="container app-header-inner">
     <div class="logo-block">
-      <!-- если у тебя есть логотип, положи его в frontend/assets/logo.png -->
       <img src="assets/logo.png" alt="РазвиТайм" class="logo-image">
       <div class="logo-texts">
         <div class="logo-text-main">РазвиТайм</div>
@@ -20,25 +26,23 @@
     </div>
 
     <nav class="nav-links">
-      <a href="index.html">Главная</a>
+      <a href="index.html" class="active">Главная</a>
       <a href="search.html">Найти занятия</a>
-      <a href="schedule.html">Умное расписание</a>
-      <a href="auth.html">Для родителей и центров</a>
     </nav>
 
     <div class="nav-auth">
-  <button class="btn btn-secondary btn-sm js-login-cta"
-          onclick="window.location.href='auth.html'">
-    Войти
-  </button>
-  <button class="btn btn-primary btn-sm js-login-cta"
-          onclick="window.location.href='auth.html'">
-    Создать аккаунт
-  </button>
-</div>
-
+      <button class="btn btn-secondary btn-sm js-login-cta"
+              onclick="window.location.href='auth.html'">
+        Войти
+      </button>
+      <button class="btn btn-primary btn-sm js-login-cta"
+              onclick="window.location.href='auth.html'">
+        Создать аккаунт
+      </button>
+    </div>
   </div>
 </header>
+
 
 <!-- 1. HERO-БЛОК -->
 <section class="hero">
@@ -324,6 +328,7 @@
   </div>
 </footer>
 
+<script src="config.js"></script>
 <script src="script.js"></script>
 </body>
 </html>

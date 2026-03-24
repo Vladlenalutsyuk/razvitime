@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Центр — РазвиТайм</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="app-header">
+  <div class="container app-header-inner">
+    <div class="logo-block">
+      <img src="assets/logo.png" alt="РазвиТайм" class="logo-image">
+      <div class="logo-texts">
+        <div class="logo-text-main">РазвиТайм</div>
+        <div class="logo-text-sub">умное расписание для семьи</div>
+      </div>
+    </div>
+    <nav class="nav-links">
+      <a href="index.html">Главная</a>
+      <a href="search.html">Найти занятия</a>
+    </nav>
+  </div>
+</header>
+
+<main class="page-parent" style="padding-top:24px;">
+  <div class="container">
+    <div id="center-card" class="split-card">
+      Загрузка информации о центре...
+    </div>
+  </div>
+</main>
+
+<footer class="app-footer">
+  <div class="container app-footer-inner">
+    <div>© 2025 РазвиТайм.</div>
+    <div class="footer-links">
+      <a href="#">О платформе</a>
+      <a href="#">Для родителей</a>
+      <a href="#">Для центров</a>
+      <a href="#">Контакты</a>
+    </div>
+  </div>
+</footer>
+
+<script src="config.js"></script>
+<script>
+  const API_BASE = "http://localhost:5000";
+
+  function getQueryId() {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("id");
+  }
+
+  async function loadCenter() {
+    const id = getQueryId();
+    const box = document.getElementById("center-card");
+    if (!id) {
+      box.textContent = "Не указан идентификатор центра.";
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_BASE}/api/centers/${id}`);
+      if (!res.ok) throw new Error("not ok");
+      const c = await res.json();
+
+      const teachersHtml = (c.teachers || [])
+        .map((t) => `<li>${t.name} — ${t.subject || ""}</li>`)
+        .join("");
+
+      const activitiesHtml = (c.activities || [])
+        .map(
+          (a) => `
+          <li>
+            <button class="link-as-button" onclick="window.location.href='activity.html?id=${a.id}'">
+              ${a.title}
+            </button>
+            ${a.min_age || a.max_age ? ` · ${a.min_age || "?"}–${a.max_age || "?"} лет` : ""}
+          </li>`
+        )
+        .join("");
+
+      const reviewsHtml = (c.reviews || [])
+        .map(
+          (r) => `
+          <li>
+            <strong>${r.author}</strong> · ${r.rating || "5"}★<br>
+            ${r.text}
+          </li>`
+        )
+        .join("");
+
+      box.innerHTML = `
+        <h1 class="section-title">${c.name}</h1>
+        <p class="section-subtitle">
+          Адрес: ${c.city || ""} ${c.address ? "· " + c.address : ""}
+        </p>
+
+        <div style="margin-top:12px;">
+          <h3>О центре</h3>
+          <p>${c.description || "Описание пока не заполнено."}</p>
+        </div>
+
+        <div style="margin-top:16px;">
+          <h3>Преподаватели</h3>
+          <ul class="split-card-steps">
+            ${teachersHtml || "<li>Информация о преподавателях появится позже.</li>"}
+          </ul>
+        </div>
+
+        <div style="margin-top:16px;">
+          <h3>Все кружки центра</h3>
+          <ul class="split-card-steps">
+            ${activitiesHtml || "<li>Кружки ещё не добавлены.</li>"}
+          </ul>
+        </div>
+
+        <div style="margin-top:16px;">
+          <h3>Отзывы</h3>
+          <ul class="split-card-steps">
+            ${reviewsHtml || "<li>Отзывов пока нет.</li>"}
+          </ul>
+        </div>
+      `;
+    } catch (e) {
+      console.error(e);
+      box.textContent = "Не удалось загрузить центр.";
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", loadCenter);
+</script>
+</body>
+</html>

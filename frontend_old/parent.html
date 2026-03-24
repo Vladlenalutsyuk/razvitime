@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Кабинет родителя — РазвиТайм</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+
+</head>
+<body>
+
+<header class="app-header">
+  <div class="container app-header-inner">
+    <div class="logo-block">
+      <img src="assets/logo.png" alt="РазвиТайм" class="logo-image">
+      <div class="logo-texts">
+        <div class="logo-text-main">РазвиТайм</div>
+        <div class="logo-text-sub">умное расписание для семьи</div>
+      </div>
+    </div>
+
+    <nav class="nav-links">
+      <div class="nav-notifications">
+        <button
+          class="icon-button"
+          type="button"
+          id="notifications-bell"
+          title="Уведомления"
+        >
+          🔔
+          <span class="notifications-badge" id="notifications-badge" hidden></span>
+        </button>
+
+        <div class="notifications-dropdown" id="notifications-dropdown">
+          <!-- Список уведомлений подставит JS -->
+        </div>
+      </div>
+
+      <button class="btn btn-outline btn-sm" type="button" id="logout-btn">
+        Выйти
+      </button>
+    </nav>
+  </div>
+</header>
+
+
+<main class="page-parent">
+  <div class="container parent-layout">
+    <!-- Боковое меню -->
+    <aside class="parent-sidebar">
+      <button class="tab-btn" data-section="parent-search">
+        Найти занятия
+      </button>
+      <button class="tab-btn" data-section="parent-kids">
+        Мои дети
+      </button>
+      <button class="tab-btn" data-section="parent-schedule">
+        Расписание
+      </button>
+      <button class="tab-btn" data-section="parent-profile">
+        Мой профиль
+      </button>
+      <button class="tab-btn" data-section="parent-help">
+        Помощь
+      </button>
+    </aside>
+
+    <!-- Контент -->
+    <section class="parent-main">
+      <!-- 2.1. Дашборд (можно оставить скрытым) -->
+      <section id="parent-dashboard" class="parent-section" style="display:none;">
+        <div class="section-header">
+          <h1 class="section-title">Главное</h1>
+          <p class="section-subtitle">
+            Здесь родитель управляет детьми, расписанием и напоминаниями на платформе РазвиТайм.
+          </p>
+        </div>
+
+        <div class="split-cards">
+          <!-- Левый блок: приветствие + о платформе + инструкция -->
+          <div id="parent-greeting" class="split-card">
+            Загрузка данных родителя...
+          </div>
+
+          <!-- Правый блок: ближайшие занятия + карусель отзывов -->
+          <div class="split-card">
+            <h3>Ближайшие занятия</h3>
+            <div id="parent-upcoming">
+              Загрузка ближайших занятий...
+            </div>
+
+            <div class="reviews-block">
+              <div class="reviews-header">
+                <h3>Отзывы родителей о центрах</h3>
+                <div class="reviews-dots" id="reviews-dots"></div>
+              </div>
+              <div class="reviews-carousel" id="reviews-carousel">
+                <!-- Слайды будут подставлены JS -->
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 2.3. Мои дети -->
+      <section id="parent-kids" class="parent-section" style="display:none;">
+        <div class="section-header">
+          <h2>Мои дети</h2>
+          <button class="btn btn-primary btn-sm" id="add-kid-btn">+ Добавить ребёнка</button>
+        </div>
+
+        <div id="kids-list" style="margin-top:16px;"></div>
+
+        <!-- форма добавления/редактирования -->
+        <div id="kid-form-block" class="reminders-card" style="display:none; margin-top:16px;">
+          <h3 id="kid-form-title">Добавить ребёнка</h3>
+          <div class="auth-field">
+            <label>Имя</label>
+            <input type="text" id="kid-name">
+          </div>
+          <div class="auth-field">
+            <label>Дата рождения</label>
+            <input type="date" id="kid-birth">
+          </div>
+          <div class="auth-field">
+            <label>Пол</label>
+            <select id="kid-gender">
+              <option value="">Не указано</option>
+              <option value="girl">Девочка</option>
+              <option value="boy">Мальчик</option>
+            </select>
+          </div>
+          <div class="auth-field">
+            <label>Фото (URL)</label>
+            <input type="text" id="kid-photo" placeholder="https://...">
+          </div>
+          <div style="display:flex; gap:8px; margin-top:8px;">
+            <button class="btn btn-primary btn-sm" id="kid-save-btn">Сохранить</button>
+            <button class="btn btn-outline btn-sm" id="kid-cancel-btn">Отмена</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 2.5. Расписание (школьное + кружки) -->
+      <section id="parent-schedule" class="parent-section" style="display:none;">
+        <div class="section-header">
+          <h1 class="section-title">Расписание детей</h1>
+          <p class="section-subtitle">
+            Общий вид: школьные уроки + кружки, по дням недели.
+          </p>
+        </div>
+
+        <!-- Панель управления расписанием -->
+        <div class="schedule-controls-card split-card">
+          <div class="schedule-controls-row">
+            <div>
+              <label class="filter-label" for="schedule-kid-filter">Ребёнок</label>
+              <select id="schedule-kid-filter" class="filter-select">
+                <option value="all">Все дети</option>
+                <!-- остальное подставит JS -->
+              </select>
+            </div>
+
+            <div>
+              <span class="filter-label">Вид расписания</span>
+              <div class="schedule-view-toggle">
+                <button class="view-btn active" data-view="day">День</button>
+                <button class="view-btn" data-view="week">Неделя</button>
+              </div>
+            </div>
+
+            <div>
+              <span class="filter-label">Экспорт</span>
+              <button class="btn btn-outline btn-sm" id="export-schedule-btn">
+                Экспортировать как картинку
+              </button>
+            </div>
+          </div>
+
+          <div class="schedule-legend">
+            <span class="legend-item legend-school">■ Школьные уроки</span>
+            <span class="legend-item legend-extra">■ Дополнительные занятия (кружки)</span>
+          </div>
+
+          <!-- фильтр типов занятий -->
+          <div class="schedule-filters-row" style="margin-top:10px;">
+            <div>
+              <span class="filter-label">Тип занятий</span>
+              <div class="schedule-type-toggle">
+                <label><input type="radio" name="schedule-type" value="all" checked> Все вместе</label>
+                <label><input type="radio" name="schedule-type" value="school"> Только школа</label>
+                <label><input type="radio" name="schedule-type" value="extras"> Только кружки</label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Цвета детей -->
+        <div class="split-card" id="kid-colors-card" style="margin-top:12px; display:none;">
+          <h3 style="margin-top:0;">Цвета детей</h3>
+          <p class="section-subtitle">
+            Каждому ребёнку можно назначить цвет, которым будут подсвечиваться его занятия в расписании.
+          </p>
+          <div id="kid-colors-list" class="kid-colors-list"></div>
+        </div>
+
+        <!-- Таблица расписания -->
+        <div class="split-card" style="margin-top:16px;">
+          <div id="schedule-table-wrapper" class="schedule-table-wrapper">
+            Загрузка расписания...
+          </div>
+        </div>
+
+        <!-- Блок школьного расписания (без таблицы, только кнопка + форма) -->
+        <div class="split-card" style="margin-top:16px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+            <h3>Школьное расписание</h3>
+            <button class="btn btn-secondary btn-sm" id="toggle-school-form-btn">
+              Добавить/Изменить школьное расписание
+            </button>
+          </div>
+
+          <div id="school-lessons-list" class="section-subtitle" style="margin-bottom:10px;">
+            Школьные уроки учитываются в общей таблице расписания выше.
+          </div>
+
+          <div id="school-form-container" style="display:none;">
+            <div class="schedule-school-form">
+              <div class="form-grid">
+                <label>
+                  Ребёнок
+                  <select id="school-kid-select"></select>
+                </label>
+
+                <label>
+                  День недели
+                  <select id="school-weekday">
+                    <option value="1">Понедельник</option>
+                    <option value="2">Вторник</option>
+                    <option value="3">Среда</option>
+                    <option value="4">Четверг</option>
+                    <option value="5">Пятница</option>
+                    <option value="6">Суббота</option>
+                    <option value="7">Воскресенье</option>
+                  </select>
+                </label>
+
+                <label>
+                  Номер урока
+                  <input type="number" id="school-lesson-number" min="1" max="10" placeholder="1, 2, 3">
+                </label>
+
+                <label>
+                  Предмет
+                  <input type="text" id="school-subject" placeholder="Математика, Русский язык...">
+                </label>
+              </div>
+
+              <div style="margin-top:12px;">
+                <button class="btn btn-primary btn-sm" id="school-add-btn">
+                  + Добавить урок
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 2.7. Найти занятия -->
+      <section id="parent-search" class="parent-section" style="display:block;">
+        <div class="section-header">
+          <h1 class="section-title">Найти занятия</h1>
+          <p class="section-subtitle">
+            Посмотрите все доступные кружки, а затем уточните поиск фильтрами.
+          </p>
+        </div>
+
+        <div class="search-layout">
+          <aside class="filters-card">
+            <h3>Фильтры</h3>
+
+            <div class="filter-group">
+              <label class="filter-label" for="filter-text">Обычный поиск</label>
+              <div class="filter-row-inline">
+                <input id="filter-text"
+                       class="filter-input"
+                       type="text"
+                       placeholder="Название кружка, центра или адрес">
+                <button class="btn btn-secondary btn-sm" id="simple-search-btn">
+                  Найти
+                </button>
+              </div>
+            </div>
+
+            <div class="filter-group">
+              <label class="filter-label" for="filter-city">Город</label>
+              <input id="filter-city" class="filter-input" type="text" placeholder="Например, Симферополь">
+            </div>
+
+            <div class="filter-group">
+              <label class="filter-label" for="filter-age">Возраст ребёнка</label>
+              <input id="filter-age" class="filter-input" type="number" min="0" placeholder="Например, 8">
+            </div>
+
+            <div class="filter-group">
+              <label class="filter-label" for="filter-category">Категория</label>
+              <select id="filter-category" class="filter-select">
+                <option value="">Любая</option>
+                <option value="спорт">Спорт</option>
+                <option value="творчество">Творчество</option>
+                <option value="IT">IT</option>
+              </select>
+            </div>
+
+            <div class="filters-actions">
+              <button class="btn btn-primary btn-sm" id="search-activities-btn">
+                Применить фильтры
+              </button>
+            </div>
+          </aside>
+
+          <section>
+            <div class="search-header-line">
+              <div>
+                <h2>Доступные занятия</h2>
+                <p>Сначала показываем все кружки, затем — только подходящие по фильтрам.</p>
+              </div>
+            </div>
+
+            <div id="activities-results" class="activities-list">
+              Загрузка занятий...
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <!-- 2.2. Мой профиль -->
+      <section id="parent-profile" class="parent-section" style="display:none;">
+        <h2>Мой профиль</h2>
+        <div class="reminders-card">
+          <div class="auth-field">
+            <label>Город</label>
+            <input type="text" id="profile-city">
+          </div>
+          <div class="auth-field">
+            <label>Телефон</label>
+            <input type="text" id="profile-phone">
+          </div>
+          <div class="auth-field">
+            <label>Telegram</label>
+            <input type="text" id="profile-telegram">
+          </div>
+          <div class="auth-field">
+            <label>WhatsApp</label>
+            <input type="text" id="profile-whatsapp">
+          </div>
+          <div class="auth-field">
+            <label>Доп. email</label>
+            <input type="email" id="profile-extra-email">
+          </div>
+          <div class="auth-field">
+            <label>Аватар (URL)</label>
+            <input type="text" id="profile-avatar">
+          </div>
+          <button class="btn btn-primary btn-sm" id="profile-save-btn">
+            Сохранить профиль
+          </button>
+        </div>
+      </section>
+
+      <!-- 2.7. Помощь -->
+      <section id="parent-help" class="parent-section" style="display:none;">
+        <div class="section-header">
+          <h2 class="section-title">Помощь</h2>
+          <p class="section-subtitle">
+            Полная инструкция по использованию личного кабинета родителя и контакты поддержки.
+          </p>
+        </div>
+
+        <div class="split-cards">
+          <!-- Инструкция -->
+          <div class="split-card">
+            <h3>Как пользоваться личным кабинетом</h3>
+            <ol class="split-card-steps">
+              <li>Перейдите во вкладку «Мои дети» и добавьте профили всех детей (ФИО, дата рождения, фото).</li>
+              <li>Во вкладке «Расписание» через блок «Школьное расписание» внесите уроки по дням и предметам.</li>
+              <li>Во вкладке «Найти занятия» подберите кружки по городу, возрасту и направлению.</li>
+              <li>Запишите ребёнка на кружок (через кнопку «Подробнее» / «Записаться» в карточке занятия, если подключен бэкенд).</li>
+              <li>Следите за общим расписанием «школа + кружки» во вкладке «Расписание» (виды День / Неделя).</li>
+              <li>Создавайте напоминания о важных занятиях и событиях — они появятся в системе уведомлений (иконка колокольчика).</li>
+              <li>При необходимости экспортируйте расписание в картинку и отправляйте родственникам или распечатывайте.</li>
+            </ol>
+            <p class="section-subtitle">
+              Все данные хранятся в вашем личном кабинете и привязаны к учётной записи родителя.
+            </p>
+          </div>
+
+          <!-- Поддержка -->
+          <div class="split-card">
+            <h3>Поддержка</h3>
+            <p class="section-subtitle">
+              Если что-то не работает, есть вопросы по расписанию или вы нашли ошибку, свяжитесь с нами:
+            </p>
+            <ul class="split-card-steps">
+              <li>E-mail: <a href="mailto:support@razvitime.demo">support@razvitime.demo</a></li>
+              <li>Телефон: <a href="tel:+7-900-000-00-00">+7 (900) 000-00-00</a> (будни 10:00–18:00)</li>
+              <li>Чат: кнопка «Написать в чат» в правом нижнем углу (можно добавить позже, как виджет).</li>
+            </ul>
+            <p class="section-subtitle">
+              В сообщении удобно сразу указать ФИО ребёнка, город и кратко описать проблему — так мы быстрее поможем.
+            </p>
+          </div>
+        </div>
+      </section>
+
+    </section>
+  </div>
+</main>
+
+<footer class="app-footer">
+  <div class="container app-footer-inner">
+    <div>© 2025 РазвиТайм.</div>
+    <div class="footer-links">
+      <a href="#">О платформе</a>
+      <a href="#">Для родителей</a>
+      <a href="#">Для центров</a>
+      <a href="#">Контакты</a>
+    </div>
+  </div>
+</footer>
+
+<script src="parent.js"></script>
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+</body>
+</html>

@@ -21,12 +21,13 @@ const DEMO_PASSWORDS = {
 router.post("/login", async (req, res) => {
   const { email, password, role } = req.body;
 
+  console.log("LOGIN BODY:", { email, password, role });
+
   if (!email || !password) {
     return res.status(400).json({ error: "Укажите e-mail и пароль" });
   }
 
   try {
-    // находим пользователя по email
     const [rows] = await db.query(
       `SELECT 
           u.id,
@@ -40,30 +41,32 @@ router.post("/login", async (req, res) => {
       [email]
     );
 
+    console.log("FOUND ROWS:", rows);
+
     if (rows.length === 0) {
       return res.status(401).json({ error: "Неверный логин или пароль" });
     }
 
     const user = rows[0];
 
-    // сверяем роль (если передали)
+    console.log("FOUND USER ROLE:", user.role);
+
     if (role && user.role !== role) {
       return res.status(401).json({ error: "Роль пользователя не совпадает" });
     }
 
-    // демо-проверка пароля
     const expectedPassword = DEMO_PASSWORDS[user.role];
+    console.log("EXPECTED PASSWORD:", expectedPassword);
+
     if (!expectedPassword || password !== expectedPassword) {
       return res.status(401).json({ error: "Неверный логин или пароль" });
     }
 
-    // "обновим" последнюю дату логина (чисто для вида)
     await db.query(
       "UPDATE users SET last_login_at = NOW() WHERE id = ?",
       [user.id]
     );
 
-    // ответ — как будто у нас токен (на самом деле просто строка)
     const demoToken = `demo-${user.role}-${user.id}`;
 
     res.json({
@@ -79,5 +82,4 @@ router.post("/login", async (req, res) => {
     res.status(500).json({ error: "Ошибка сервера при входе" });
   }
 });
-
 module.exports = router;

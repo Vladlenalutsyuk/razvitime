@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Информация о центре — РазвиТайм</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="page-root">
+<header class="app-header">
+  <div class="container app-header-inner">
+    <div class="logo-block">
+      <img src="assets/logo.png" alt="РазвиТайм" class="logo-image" />
+      <div class="logo-texts">
+        <div class="logo-text-main">РазвиТайм</div>
+        <div class="logo-text-sub">умное расписание для семьи</div>
+      </div>
+    </div>
+    <nav class="nav-links">
+      <a href="index.html">Главная</a>
+      <a href="search.html">Найти занятия</a>
+      <a href="auth.html">Войти</a>
+    </nav>
+  </div>
+</header>
+
+<main class="page-parent" style="padding-top:24px;">
+  <div class="container">
+    <div id="center-info-card" class="split-card">
+      Загрузка данных о центре...
+    </div>
+
+    <section style="margin-top:24px;">
+      <h2 class="section-title">Все занятия центра</h2>
+      <div id="center-activities-list" class="activities-list-grid">
+        <!-- сюда придут карточки кружков -->
+      </div>
+    </section>
+  </div>
+</main>
+
+<footer class="app-footer">
+  <div class="container app-footer-inner">
+    <div>© 2025 РазвиТайм.</div>
+    <div class="footer-links">
+      <a href="#">О платформе</a>
+      <a href="#">Для родителей</a>
+      <a href="#">Для центров</a>
+      <a href="#">Контакты</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+  const API_BASE = "http://localhost:5000";
+
+  function getCenterId() {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("id");
+  }
+
+  async function loadCenterInfo() {
+    const id = getCenterId();
+    const infoBox = document.getElementById("center-info-card");
+    const listBox = document.getElementById("center-activities-list");
+    if (!id) {
+      infoBox.textContent = "Не указан центр.";
+      return;
+    }
+
+    try {
+      const [centerRes, activitiesRes] = await Promise.all([
+        fetch(`${API_BASE}/api/public/centers/${id}`),
+        fetch(`${API_BASE}/api/public/centers/${id}/activities`)
+      ]);
+
+      if (!centerRes.ok) throw new Error("center error");
+      if (!activitiesRes.ok) throw new Error("activities error");
+
+      const center = await centerRes.json();
+      const activities = await activitiesRes.json();
+
+      infoBox.innerHTML = `
+        <h1 class="section-title">${center.name}</h1>
+        <p class="section-subtitle">${center.city || ""}${
+          center.address ? " · " + center.address : ""
+        }</p>
+
+        <div style="margin-top:12px;">
+          <h3>О центре</h3>
+          <p>${center.description || "Описание пока не заполнено."}</p>
+        </div>
+
+        <div style="margin-top:12px;">
+          <h3>Контакты</h3>
+          <ul class="split-card-steps">
+            ${center.phone ? `<li>Телефон: <a href="tel:${center.phone}">${center.phone}</a></li>` : ""}
+            ${center.whatsapp ? `<li>WhatsApp: ${center.whatsapp}</li>` : ""}
+            ${center.website ? `<li>Сайт: <a href="${center.website}" target="_blank">${center.website}</a></li>` : ""}
+            ${center.instagram ? `<li>Instagram: <a href="${center.instagram}" target="_blank">${center.instagram}</a></li>` : ""}
+          </ul>
+        </div>
+      `;
+
+      if (!activities.length) {
+        listBox.textContent = "В этом центре пока нет добавленных занятий.";
+      } else {
+        listBox.innerHTML = activities
+          .map(
+            (a) => `
+          <article class="activity-card">
+            <div class="activity-main" onclick="window.location.href='activity.html?id=${a.id}'">
+              <h3>${a.title}</h3>
+              <div class="activity-meta">
+                ${a.category || "Без категории"}${
+                  a.min_age || a.max_age
+                    ? ` · ${a.min_age || "?"}–${a.max_age || "?"} лет`
+                    : ""
+                }
+              </div>
+              <p class="activity-desc">
+                ${a.description ? a.description.slice(0, 140) + "..." : "Описание появится позже."}
+              </p>
+            </div>
+          </article>
+        `
+          )
+          .join("");
+      }
+    } catch (e) {
+      console.error(e);
+      infoBox.textContent = "Ошибка загрузки центра.";
+      listBox.textContent = "";
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", loadCenterInfo);
+</script>
+</body>
+</html>

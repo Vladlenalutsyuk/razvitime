@@ -1,4 +1,4 @@
-// frontend/schedule.js
+// frontend/schedule.html helper
 document.addEventListener("DOMContentLoaded", () => {
   const userRaw = localStorage.getItem("razvitime_user");
   const guestBox = document.getElementById("schedule-guest-message");

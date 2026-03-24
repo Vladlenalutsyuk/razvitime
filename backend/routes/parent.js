@@ -80,6 +80,55 @@ router.get("/dashboard", async (req, res) => {
   }
 });
 
+// в начале файла уже должно быть:
+// const express = require("express");
+// const router = express.Router();
+// const pool = require("../db");
+
+// ...
+
+// СЛОТЫ КРУЖКОВ ДЛЯ РОДИТЕЛЯ (по kid_id + enrollments + schedule_slots)
+router.get("/parent/activity-slots", async (req, res) => {
+  try {
+    const parentId = Number(req.query.parentId);
+    if (!parentId) {
+      return res.status(400).json({ error: "parentId is required" });
+    }
+
+    const [rows] = await pool.promise().query(
+      `
+      SELECT 
+        e.id            AS enrollment_id,
+        k.id            AS kid_id,
+        k.full_name     AS kid_name,
+        a.title         AS activity_title,
+        c.name          AS center_name,
+        ss.weekday      AS weekday,
+        ss.start_time   AS start_time,
+        ss.end_time     AS end_time
+      FROM enrollments e
+      JOIN kids k             ON e.kid_id = k.id
+      JOIN activity_groups g  ON e.group_id = g.id
+      JOIN activities a       ON g.activity_id = a.id
+      JOIN centers c          ON a.center_id = c.id
+      JOIN schedule_slots ss  ON ss.group_id = g.id
+      WHERE k.parent_id = ?
+        AND e.status = 'approved'
+      ORDER BY ss.weekday, ss.start_time;
+      `,
+      [parentId]
+    );
+
+    res.json(rows);
+  } catch (err) {
+    console.error("activity-slots error", err);
+    res.status(500).json({ error: "Failed to load activity slots" });
+  }
+});
+
+
+
+
 /**
  * 2.2. Профиль родителя:
  * GET  /api/parent/profile
@@ -330,34 +379,6 @@ router.post("/enroll", async (req, res) => {
 });
 
 
-/**
- * Школьное расписание:
- * GET  /api/parent/school-lessons?parentId=...
- * POST /api/parent/school-lessons  { kid_id, weekday, lesson_number, subject }
- */
-router.get("/school-lessons", async (req, res) => {
-  const parentId = getParentId(req);
-  try {
-    const [rows] = await db.query(
-      `SELECT sl.id,
-              sl.kid_id,
-              sl.weekday,
-              sl.lesson_number,
-              sl.subject,
-              sl.classroom,
-              k.full_name AS kid_name
-       FROM school_lessons sl
-       JOIN kids k ON sl.kid_id = k.id
-       WHERE k.parent_id = ?
-       ORDER BY k.full_name, sl.weekday, sl.lesson_number`,
-      [parentId]
-    );
-    res.json(rows);
-  } catch (error) {
-    console.error("school lessons get error", error);
-    res.status(500).json({ error: "Ошибка получения школьного расписания" });
-  }
-});
 
 router.post("/school-lessons", async (req, res) => {
   const parentId = getParentId(req);
@@ -386,6 +407,114 @@ router.post("/school-lessons", async (req, res) => {
   } catch (error) {
     console.error("school lessons post error", error);
     res.status(500).json({ error: "Ошибка сохранения школьного расписания" });
+  }
+});
+
+// ---------------------------------------------------------
+// ШКОЛЬНОЕ РАСПИСАНИЕ + КРУЖКИ В ОДНОМ СПИСКЕ
+// GET  /api/parent/school-lessons?parentId=1
+// POST /api/parent/school-lessons?parentId=1  (добавить школьный урок)
+// ---------------------------------------------------------
+
+router.get("/school-lessons", async (req, res) => {
+  const parentId = getParentId(req);
+
+  try {
+    // 1) ШКОЛА
+    const [schoolRows] = await db.query(
+      `SELECT
+         sl.id            AS schedule_id,
+         k.id             AS kid_id,
+         k.full_name      AS kid_name,
+         sl.weekday,
+         sl.lesson_number,
+         sl.start_time,
+         sl.end_time,
+         sl.subject       AS title,
+         NULL             AS category,
+         'school'         AS item_type
+       FROM school_lessons sl
+       JOIN kids k ON sl.kid_id = k.id
+       WHERE k.parent_id = ?`,
+      [parentId]
+    );
+
+    // 2) КРУЖКИ (одобренные записи ребёнка)
+    const [activityRows] = await db.query(
+      `SELECT
+         ss.id            AS schedule_id,
+         k.id             AS kid_id,
+         k.full_name      AS kid_name,
+         ss.weekday,
+         NULL             AS lesson_number,
+         ss.start_time,
+         ss.end_time,
+         a.title          AS title,
+         a.category       AS category,
+         'activity'       AS item_type
+       FROM enrollments e
+       JOIN kids k            ON e.kid_id = k.id
+       JOIN activity_groups g ON e.group_id = g.id
+       JOIN schedule_slots ss ON ss.group_id = g.id
+       JOIN activities a      ON g.activity_id = a.id
+       WHERE k.parent_id = ?
+         AND e.status = 'approved'`,
+      [parentId]
+    );
+
+    const all = [...schoolRows, ...activityRows].sort((a, b) => {
+      if (a.weekday !== b.weekday) return a.weekday - b.weekday;
+      const ta = a.start_time || "00:00:00";
+      const tb = b.start_time || "00:00:00";
+      return ta.localeCompare(tb);
+    });
+
+    res.json(all);
+  } catch (err) {
+    console.error("school-lessons get error", err);
+    res.status(500).json({ error: "Ошибка получения расписания" });
+  }
+});
+
+router.post("/school-lessons", async (req, res) => {
+  const parentId = getParentId(req);
+  const { kid_id, weekday, lesson_number, subject, start_time, end_time } =
+    req.body;
+
+  if (!kid_id || !weekday || !subject) {
+    return res
+      .status(400)
+      .json({ error: "Нужно указать ребёнка, день недели и предмет" });
+  }
+
+  try {
+    // Проверим, что ребёнок принадлежит этому родителю
+    const [kidRows] = await db.query(
+      "SELECT id FROM kids WHERE id = ? AND parent_id = ?",
+      [kid_id, parentId]
+    );
+    if (!kidRows.length) {
+      return res.status(403).json({ error: "Нет доступа к этому ребёнку" });
+    }
+
+    await db.query(
+      `INSERT INTO school_lessons
+         (kid_id, weekday, lesson_number, start_time, end_time, subject)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [
+        kid_id,
+        weekday,
+        lesson_number || null,
+        start_time || null,
+        end_time || null,
+        subject,
+      ]
+    );
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("school-lessons post error", err);
+    res.status(500).json({ error: "Ошибка сохранения урока" });
   }
 });
 

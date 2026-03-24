@@ -1,0 +1,1681 @@
+/* ===========================
+   0. ШРИФТЫ И БАЗА
+   =========================== */
+
+/* Красивый шрифт Manrope (очень читаемый, модный SaaS-стиль) */
+@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap");
+
+:root {
+  /* База */
+  --color-bg: #fdf7f0;           /* кремовый / бежевый фон */
+  --color-bg-soft: #fffaf3;      /* мягкие блоки */
+  --color-white: #ffffff;
+
+  /* Брендовые */
+  --brand-green: #58b68b;
+  --brand-green-light: #e4f7ef;
+  --brand-orange: #ff9c55;
+  --brand-orange-light: #ffe8d5;
+
+  --color-orange: var(--brand-orange);
+  --color-orange-soft: var(--brand-orange-light);
+  --color-green: var(--brand-green);
+  --color-green-soft: var(--brand-green-light);
+
+  --color-text-main: #262626;
+  --color-text-muted: #757575;
+  --color-border-soft: #e5ddd2;
+
+  --radius-xs: 10px;
+  --radius-sm: 14px;
+  --radius-md: 18px;
+  --radius-lg: 24px;
+
+  --shadow-soft: 0 16px 40px rgba(15, 23, 42, 0.06);
+  --transition-fast: 0.2s ease;
+
+  --container-width: 1180px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: "Manrope", system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", Roboto, sans-serif;
+  background: radial-gradient(circle at top left, #fff2df, #fdf7f0 55%);
+  color: var(--color-text-main);
+  line-height: 1.6;
+  font-size: 15px;
+}
+
+/* Центрирование / контейнер */
+
+.container {
+  width: 100%;
+  max-width: var(--container-width);
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+/* ===========================
+   1. ШАПКА
+   =========================== */
+
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: rgba(253, 247, 240, 0.94);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid rgba(229, 221, 210, 0.7);
+}
+
+.app-header-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 16px;
+}
+
+.logo-block {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.logo-image {
+  height: 52px;
+  width: auto;
+  object-fit: contain;
+}
+
+.logo-texts {
+  display: flex;
+  flex-direction: column;
+}
+
+.logo-text-main {
+  font-weight: 800;
+  font-size: 22px;
+  letter-spacing: 0.03em;
+}
+
+.logo-text-sub {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  margin-top: 3px;
+}
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.nav-links a {
+  text-decoration: none;
+  font-size: 14px;
+  color: var(--color-text-main);
+  padding: 6px 0;
+  position: relative;
+  font-weight: 500;
+  opacity: 0.9;
+}
+
+.nav-links a::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -4px;
+  width: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--brand-green), var(--brand-orange));
+  border-radius: 999px;
+  transition: width var(--transition-fast);
+}
+
+.nav-links a:hover::after {
+  width: 100%;
+}
+
+.nav-links a:hover {
+  opacity: 1;
+}
+
+.nav-auth {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* ===========================
+   2. КНОПКИ
+   =========================== */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 18px;
+  border-radius: 999px;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  transition:
+    background var(--transition-fast),
+    color var(--transition-fast),
+    box-shadow var(--transition-fast),
+    transform var(--transition-fast),
+    border-color var(--transition-fast);
+}
+
+/* Основная CTA (оранжевая) */
+.btn-primary {
+  background: linear-gradient(135deg, var(--brand-orange), #ff7a3b);
+  color: #fff;
+  box-shadow: var(--shadow-soft);
+}
+
+.btn-primary:hover {
+  background: linear-gradient(135deg, #ff7a3b, var(--brand-orange));
+  transform: translateY(-1px);
+}
+
+/* Вторичная (белая) */
+.btn-secondary {
+  background: #ffffff;
+  color: var(--color-text-main);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.05);
+}
+
+.btn-secondary:hover {
+  background: #fff7ec;
+}
+
+/* Обводка */
+.btn-outline {
+  background: transparent;
+  color: var(--brand-green);
+  border: 1px solid var(--brand-green);
+}
+
+.btn-outline:hover {
+  background: var(--brand-green-light);
+}
+
+/* Маленькие кнопки */
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 13px;
+}
+
+/* ===========================
+   3. HERO (главная)
+   =========================== */
+
+.hero {
+  padding: 48px 0 60px;
+}
+
+.hero-inner {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.9fr);
+  gap: 40px;
+  align-items: center;
+}
+
+.hero-title {
+  font-size: 34px;
+  line-height: 1.2;
+  margin: 0 0 12px;
+}
+
+.hero-tagline {
+  font-size: 15px;
+  color: var(--color-text-muted);
+  max-width: 520px;
+  margin-bottom: 20px;
+}
+
+.hero-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 22px;
+}
+
+.badge {
+  font-size: 12px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.98);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
+}
+
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.hero-caption {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  max-width: 460px;
+}
+
+/* Правая колонка: демо-расписание */
+
+.hero-schedule-card {
+  background: #ffffff;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-soft);
+  padding: 20px 18px 16px;
+  border: 1px solid rgba(229, 221, 210, 0.7);
+}
+
+.hero-schedule-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.hero-schedule-title {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.hero-schedule-sub {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.hero-chip {
+  font-size: 11px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: var(--brand-green-light);
+  color: var(--brand-green);
+  font-weight: 600;
+}
+
+/* Табличка расписания */
+
+.schedule-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 7px;
+  margin-bottom: 10px;
+}
+
+.schedule-day {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  font-weight: 600;
+}
+
+.schedule-slot {
+  margin-top: 4px;
+  border-radius: 12px;
+  padding: 5px 7px;
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* цветовые типы */
+.slot-school {
+  background: #f3f3f7;
+}
+
+.slot-sport {
+  background: var(--brand-green-light);
+}
+
+.slot-creative {
+  background: var(--brand-orange-light);
+}
+
+/* Легенда */
+
+.hero-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+}
+
+/* ===========================
+   4. СЕКЦИИ / ТИПОВЫЕ БЛОКИ
+   =========================== */
+
+.section {
+  padding: 42px 0;
+}
+
+.section-header {
+  margin-bottom: 22px;
+}
+
+.section-title {
+  font-size: 22px;
+  margin: 0 0 6px;
+}
+
+.section-subtitle {
+  font-size: 14px;
+  color: var(--color-text-muted);
+  max-width: 560px;
+}
+
+/* Карточки преимуществ */
+
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.feature-card {
+  background: var(--color-bg-soft);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.03);
+  border: 1px solid rgba(229, 221, 210, 0.7);
+  transition:
+    transform var(--transition-fast),
+    box-shadow var(--transition-fast),
+    background var(--transition-fast),
+    border-color var(--transition-fast);
+}
+
+.feature-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-soft);
+  background: #ffffff;
+  border-color: rgba(180, 213, 191, 0.8);
+}
+
+.feature-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  background: radial-gradient(circle at 25% 25%, var(--brand-orange), var(--brand-green));
+  margin-bottom: 10px;
+}
+
+.feature-card h3 {
+  font-size: 15px;
+  margin: 0 0 6px;
+}
+
+.feature-card p {
+  font-size: 13px;
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+/* Блоки "для родителей" / "для центров" */
+
+.split-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.split-card {
+  background: #ffffff;
+  border-radius: var(--radius-md);
+  padding: 20px 18px;
+  box-shadow: var(--shadow-soft);
+  border: 1px solid var(--color-border-soft);
+}
+
+.split-card h3 {
+  margin: 0 0 8px;
+  font-size: 18px;
+}
+
+.split-card p {
+  font-size: 14px;
+  color: var(--color-text-muted);
+  margin: 0 0 12px;
+}
+
+.split-card-steps {
+  margin: 0 0 14px;
+  padding-left: 20px;
+  font-size: 13px;
+  color: var(--color-text-main);
+}
+
+.split-card-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* Отзывы */
+
+.review-card {
+  background: var(--color-bg-soft);
+  border-radius: var(--radius-sm);
+  padding: 14px 14px 12px;
+  margin-top: 10px;
+  border: 1px solid rgba(229, 221, 210, 0.8);
+}
+
+/* Партнёры */
+
+.partners-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.partner-card {
+  flex: 1 1 180px;
+  min-width: 180px;
+  text-decoration: none;
+  color: inherit;
+  background: #ffffff;
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+  border: 1px solid rgba(229, 221, 210, 0.6);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.partner-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-soft);
+}
+
+.partner-name {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.partner-city {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+/* ===========================
+   5. СТАТИСТИКА
+   =========================== */
+
+.stats-section {
+  background: var(--brand-green-light);
+  padding: 56px 0;
+  margin-top: 56px;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+  margin-top: 26px;
+}
+
+.stat-card {
+  background: white;
+  border-radius: 18px;
+  padding: 22px 18px;
+  text-align: center;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.08);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+}
+
+.stat-number {
+  font-size: 32px;
+  font-weight: 800;
+  margin-bottom: 6px;
+}
+
+.stat-green {
+  color: var(--brand-green);
+}
+
+.stat-orange {
+  color: var(--brand-orange);
+}
+
+.stat-label {
+  font-size: 13px;
+  color: #444;
+}
+
+/* ===========================
+   6. ПОИСК ЗАНЯТИЙ
+   =========================== */
+
+.page-search {
+  padding: 32px 0 44px;
+}
+
+.search-layout {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 24px;
+}
+
+/* Фильтры */
+
+.filters-card {
+  background: #ffffff;
+  border-radius: var(--radius-md);
+  padding: 16px 16px 18px;
+  box-shadow: var(--shadow-soft);
+  border: 1px solid var(--color-border-soft);
+}
+
+.filters-card h3 {
+  margin: 0 0 12px;
+  font-size: 16px;
+}
+
+.filter-group {
+  margin-bottom: 12px;
+}
+
+.filter-label {
+  display: block;
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+
+.filter-input,
+.filter-select {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border-soft);
+  font-size: 13px;
+  background: #fff;
+}
+
+.filter-row-inline {
+  display: flex;
+  gap: 10px;
+}
+
+.filter-checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.filters-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+/* Результаты поиска */
+
+.search-header-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 12px;
+}
+
+.search-header-line h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.search-header-line p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.activities-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.activity-card {
+  background: #ffffff;
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.03);
+  border: 1px solid var(--color-border-soft);
+  display: grid;
+  grid-template-columns: minmax(0, 1.8fr) 170px;
+  gap: 12px;
+  align-items: center;
+}
+
+.activity-main h3 {
+  margin: 0 0 4px;
+  font-size: 16px;
+}
+
+.activity-main .activity-meta {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  margin-bottom: 6px;
+}
+
+.activity-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 11px;
+}
+
+.tag-chip {
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--color-bg-soft);
+}
+
+.activity-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.activity-price {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.activity-rating {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+/* ===========================
+   7. УМНОЕ РАСПИСАНИЕ
+   =========================== */
+
+.page-schedule {
+  padding: 32px 0 44px;
+}
+
+.schedule-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+.schedule-header-main h1 {
+  margin: 0 0 4px;
+  font-size: 22px;
+}
+
+.schedule-header-main p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.schedule-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.tab-pill {
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: #ffffff;
+  border: 1px solid var(--color-border-soft);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.tab-pill.active {
+  border-color: var(--brand-green);
+  background: var(--brand-green-light);
+  color: var(--brand-green);
+}
+
+.schedule-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Контент расписания */
+
+.schedule-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 2.1fr) 260px;
+  gap: 20px;
+}
+
+.schedule-week-grid {
+  background: #ffffff;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-soft);
+  padding: 16px;
+  border: 1px solid var(--color-border-soft);
+  overflow-x: auto;
+}
+
+.schedule-week-inner {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(120px, 1fr));
+  gap: 12px;
+}
+
+.schedule-week-day {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.schedule-week-slot {
+  background: var(--color-bg-soft);
+  border-radius: 11px;
+  padding: 6px 8px;
+  font-size: 11px;
+  margin-bottom: 6px;
+}
+
+.schedule-week-slot.school {
+  background: #f0f0f3;
+}
+.schedule-week-slot.sport {
+  background: var(--brand-green-light);
+}
+.schedule-week-slot.creative {
+  background: var(--brand-orange-light);
+}
+
+/* Правая колонка */
+
+.schedule-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.legend-card,
+.upcoming-card {
+  background: #ffffff;
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  box-shadow: var(--shadow-soft);
+  border: 1px solid var(--color-border-soft);
+}
+
+.legend-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.upcoming-list {
+  margin: 0 0 10px;
+  padding-left: 18px;
+  font-size: 13px;
+}
+
+/* ===========================
+   8. НАПОМИНАНИЯ
+   =========================== */
+
+.page-reminders {
+  padding: 40px 0;
+}
+
+.reminders-card {
+  max-width: 600px;
+  margin: 0 auto;
+  background: #ffffff;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-soft);
+  padding: 20px 22px;
+  border: 1px solid var(--color-border-soft);
+}
+
+.reminders-card h1 {
+  margin: 0 0 8px;
+  font-size: 20px;
+}
+
+.reminders-card p {
+  margin: 0 0 14px;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.reminders-group {
+  margin-bottom: 16px;
+}
+
+.reminders-group-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.checkbox-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 13px;
+}
+
+.checkbox-row label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.reminders-select-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.reminders-select-row select {
+  padding: 7px 9px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border-soft);
+  font-size: 13px;
+}
+
+.reminders-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+/* ===========================
+   9. АВТОРИЗАЦИЯ / КАБИНЕТЫ
+   =========================== */
+
+.page-auth {
+  padding: 40px 0;
+}
+
+.auth-card {
+  max-width: 520px;
+  margin: 0 auto;
+  background: #ffffff;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-soft);
+  padding: 22px;
+  border: 1px solid var(--color-border-soft);
+}
+
+.auth-toggle {
+  display: inline-flex;
+  background: var(--color-bg-soft);
+  border-radius: 999px;
+  padding: 4px;
+  margin-bottom: 16px;
+}
+
+.auth-toggle button {
+  border: none;
+  background: transparent;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  cursor: pointer;
+  color: var(--color-text-muted);
+}
+
+.auth-toggle button.active {
+  background: #ffffff;
+  color: var(--color-text-main);
+  box-shadow: var(--shadow-soft);
+}
+
+.auth-card h1 {
+  margin: 0 0 10px;
+  font-size: 20px;
+}
+
+.auth-card p {
+  margin: 0 0 16px;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.auth-field {
+  margin-bottom: 12px;
+}
+
+.auth-field label {
+  display: block;
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+
+.auth-field input {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border-soft);
+  font-size: 14px;
+}
+
+.auth-hint {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  margin-top: 8px;
+}
+
+/* Панели кабинетов (родитель/центр/админ) можно использовать те же блоки,
+   split-card, stat-card и т.п. чтобы всё выглядело единообразно */
+
+/* ===========================
+   10. ФУТЕР
+   =========================== */
+
+/* ===========================
+   9. КАБИНЕТ РОДИТЕЛЯ
+   =========================== */
+
+.page-parent {
+  padding: 32px 0 40px;
+}
+
+.parent-layout {
+  display: grid;
+  grid-template-columns: 230px minmax(0, 1fr);
+  gap: 24px;
+  align-items: flex-start;
+}
+
+/* Левое вертикальное меню */
+
+.parent-sidebar {
+  background: #ffffff;
+  border-radius: var(--radius-lg);
+  padding: 16px 14px;
+  box-shadow: var(--shadow-soft);
+  border: 1px solid var(--color-border-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  position: sticky;
+  top: 80px;
+}
+
+.tab-btn {
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  padding: 8px 10px;
+  border-radius: 999px;
+  font-size: 14px;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
+}
+
+.tab-btn::before {
+  content: "•";
+  font-size: 10px;
+  opacity: 0.4;
+}
+
+.tab-btn:hover {
+  background: var(--color-bg-soft);
+  color: var(--color-text-main);
+  transform: translateX(2px);
+}
+
+.tab-btn.active {
+  background: var(--brand-green-light);
+  color: var(--brand-green);
+  font-weight: 600;
+}
+
+.tab-btn.active::before {
+  opacity: 1;
+}
+
+/* Контент кабинета */
+
+.parent-main {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* Чтобы карточки в кабинете не были узкими */
+.page-parent .reminders-card {
+  max-width: 100%;
+}
+
+/* Адаптив для кабинета */
+@media (max-width: 900px) {
+  .parent-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .parent-sidebar {
+    position: static;
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .tab-btn {
+    width: auto;
+  }
+}
+
+
+.app-footer {
+  padding: 20px 0;
+  border-top: 1px solid rgba(229, 221, 210, 0.7);
+  background: #fffdf8;
+  margin-top: 40px;
+}
+
+.app-footer-inner {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.footer-links a {
+  text-decoration: none;
+  color: var(--color-text-muted);
+}
+
+.footer-links a:hover {
+  color: var(--color-orange);
+}
+
+/* ===========================
+   11. АДАПТИВ
+   =========================== */
+
+@media (max-width: 992px) {
+  .hero-inner {
+    grid-template-columns: 1fr;
+  }
+
+  .search-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .schedule-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .feature-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .split-cards {
+    grid-template-columns: 1fr;
+  }
+
+  .activities-list .activity-card {
+    grid-template-columns: 1fr;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .app-header-inner {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .nav-links {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .hero-title {
+    font-size: 26px;
+  }
+
+  .feature-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .auth-card,
+  .reminders-card {
+    padding: 16px;
+  }
+}
+
+.dashboard-hero .platform-info {
+  margin-top: 14px;
+}
+
+.platform-info h3 {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+
+.platform-info-list {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.instruction-panel {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #f6fbf1;
+  border: 1px dashed rgba(134, 190, 90, 0.7);
+  font-size: 13px;
+}
+
+.instruction-panel ol {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.instruction-panel li + li {
+  margin-top: 4px;
+}
+
+/* Отзывы-карусель */
+.reviews-block {
+  margin-top: 20px;
+  border-top: 1px solid var(--color-border-soft);
+  padding-top: 14px;
+}
+
+.reviews-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.reviews-header h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.reviews-dots {
+  display: flex;
+  gap: 4px;
+}
+
+.review-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  border: none;
+  background: #e0e0e0;
+  padding: 0;
+  cursor: pointer;
+}
+
+.review-dot.active {
+  background: var(--brand-orange);
+}
+
+.reviews-carousel {
+  position: relative;
+  min-height: 72px;
+}
+
+.review-slide {
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  position: absolute;
+  inset: 0;
+}
+
+.review-slide.active {
+  opacity: 1;
+  transform: translateY(0);
+  position: relative;
+}
+
+.review-text {
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.review-meta {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.review-center {
+  font-weight: 600;
+}
+
+
+.schedule-controls-card {
+  margin-top: 0;
+}
+
+.schedule-controls-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-end;
+}
+
+.schedule-view-toggle {
+  display: inline-flex;
+  border-radius: 999px;
+  background: var(--color-bg-soft);
+  padding: 4px;
+  gap: 4px;
+}
+
+.view-btn {
+  border: none;
+  background: transparent;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  cursor: pointer;
+  color: var(--color-text-muted);
+}
+
+.view-btn.active {
+  background: #ffffff;
+  color: var(--color-text-main);
+  box-shadow: var(--shadow-soft);
+}
+
+.schedule-legend {
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend-school::before,
+.legend-extra::before {
+  content: "";
+  width: 12px;
+  height: 12px;
+  border-radius: 4px;
+  display: inline-block;
+}
+
+.legend-school::before {
+  background: #e2f5d5;
+}
+
+.legend-extra::before {
+  background: #ffe3c7;
+}
+
+.schedule-table-scroll {
+  overflow-x: auto;
+}
+
+.schedule-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.schedule-table th,
+.schedule-table td {
+  border: 1px solid var(--color-border-soft);
+  padding: 4px 6px;
+  vertical-align: top;
+}
+
+.schedule-table thead th {
+  background: #faf6ef;
+  font-weight: 600;
+  text-align: center;
+}
+
+.schedule-lesson-num {
+  width: 52px;
+  text-align: center;
+  font-weight: 600;
+  background: #fafafa;
+}
+
+.schedule-cell {
+  min-width: 120px;
+}
+
+.schedule-cell-empty {
+  background: #fcfbf8;
+}
+
+.schedule-badge {
+  border-radius: 10px;
+  padding: 4px 6px;
+  margin-bottom: 4px;
+  font-size: 12px;
+}
+
+.schedule-badge-school {
+  border: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+.schedule-badge-subject {
+  font-weight: 600;
+}
+
+.schedule-badge-kid {
+  font-size: 11px;
+  opacity: 0.8;
+}
+
+/* На будущее для доп. кружков */
+.schedule-badge-extra {
+  background: #ffe3c7;
+}
+
+.schedule-badge {
+  border-radius: 10px;
+  padding: 4px 6px;
+  margin-bottom: 4px;
+  font-size: 12px;
+}
+
+.schedule-badge-school {
+  border: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+/* НОВОЕ: стиль для кружков */
+.schedule-badge-extra {
+  background: #ffe3c7;
+  border: 1px solid var(--brand-orange);
+}
+
+.schedule-badge-subject {
+  font-weight: 600;
+}
+
+.schedule-badge-kid {
+  font-size: 11px;
+  opacity: 0.85;
+}
+
+.schedule-badge-center {
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+
+/* ===========================
+   ТАБЛИЦА РАСПИСАНИЯ (Кабинет родителя)
+   =========================== */
+
+.schedule-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  margin-top: 8px;
+}
+
+.schedule-table thead {
+  background: #faf5ee;
+}
+
+.schedule-table th,
+.schedule-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--color-border-soft);
+  text-align: left;
+}
+
+.schedule-table th {
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.schedule-table tr:last-child td {
+  border-bottom: none;
+}
+
+/* Тип занятия */
+.schedule-table tr.row-school {
+  background: #f5f5fa;
+}
+
+.schedule-table tr.row-activity {
+  background: #fff5ea;
+}
+
+/* Цвет ребёнка — через левую цветную полоску у ячейки с именем */
+
+.schedule-table .kid-cell {
+  font-weight: 600;
+}
+
+/* до 5 разных цветов по детям (по id % 5) */
+
+.kid-color-1 .kid-cell {
+  border-left: 4px solid #58b68b;
+  padding-left: 8px;
+}
+
+.kid-color-2 .kid-cell {
+  border-left: 4px solid #ff9c55;
+  padding-left: 8px;
+}
+
+.kid-color-3 .kid-cell {
+  border-left: 4px solid #5c8dff;
+  padding-left: 8px;
+}
+
+.kid-color-4 .kid-cell {
+  border-left: 4px solid #d96bff;
+  padding-left: 8px;
+}
+
+.kid-color-5 .kid-cell {
+  border-left: 4px solid #ffc94d;
+  padding-left: 8px;
+}
+
+.schedule-filters-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: center;
+  font-size: 13px;
+}
+
+.schedule-type-toggle {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.schedule-type-toggle label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.kid-colors-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.kid-color-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.kid-color-item input[type="color"] {
+  border: none;
+  width: 32px;
+  height: 24px;
+  padding: 0;
+  border-radius: 6px;
+  background: transparent;
+}
+
+.icon-button {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 20px;
+  position: relative;
+}
+
+.nav-notifications {
+  position: relative;
+}
+
+.notifications-badge {
+  position: absolute;
+  top: -4px;
+  right: -6px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--brand-orange);
+  color: #fff;
+  font-size: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.notifications-dropdown {
+  position: absolute;
+  top: 120%;
+  right: 0;
+  width: 260px;
+  background: #ffffff;
+  border-radius: 14px;
+  box-shadow: var(--shadow-soft);
+  border: 1px solid var(--color-border-soft);
+  padding: 8px 10px;
+  font-size: 13px;
+  z-index: 30;
+  display: none;
+}
+
+.notifications-dropdown.open {
+  display: block;
+}
+
+.notification-item {
+  padding: 6px 4px;
+  border-bottom: 1px solid rgba(229, 221, 210, 0.7);
+}
+
+.notification-item:last-child {
+  border-bottom: none;
+}
+
+.notification-title {
+  font-weight: 600;
+}
+
+.notification-meta {
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.notification-note {
+  font-size: 12px;
+  margin-top: 3px;
+}
+
+.notification-actions {
+  margin-top: 4px;
+  text-align: right;
+}

@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Кабинет администратора — РазвиТайм</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="app-header">
+  <div class="container app-header-inner">
+    <div class="logo-block">
+      <img src="assets/logo.png" alt="РазвиТайм" class="logo-image">
+      <div class="logo-texts">
+        <div class="logo-text-main">РазвиТайм</div>
+        <div class="logo-text-sub">умное расписание для семьи</div>
+      </div>
+    </div>
+
+    <!-- для админа оставляем только логотип + выход -->
+    <div class="nav-auth">
+      <button id="logout-btn-admin" class="btn btn-outline btn-sm">
+        Выйти
+      </button>
+    </div>
+  </div>
+</header>
+
+<main class="page-parent">
+  <div class="container parent-layout">
+    <!-- ЛЕВАЯ КОЛОНКА: боковое меню -->
+    <aside class="parent-sidebar">
+      <h1 class="parent-title">Админ-панель</h1>
+      <p class="parent-subtitle">
+        Управление центрами, родителями и аналитикой платформы.
+      </p>
+
+      <nav class="parent-menu">
+        <button class="tab-btn active" data-section="admin-dashboard">
+          Дашборд
+        </button>
+        <button class="tab-btn" data-section="admin-centers">
+          Центры и подписки
+        </button>
+        <button class="tab-btn" data-section="admin-parents">
+          Родители
+        </button>
+        <button class="tab-btn" data-section="admin-analytics">
+          Аналитика
+        </button>
+      </nav>
+    </aside>
+
+    <!-- ПРАВАЯ КОЛОНКА: содержимое вкладок -->
+    <section class="parent-main">
+
+      <!-- 1. Дашборд -->
+      <section id="admin-dashboard" class="parent-section">
+        <div class="section-header">
+          <h2 class="section-title">Общая картина платформы</h2>
+          <p class="section-subtitle">
+            Краткая статистика по родителям, детям, центрам и подпискам.
+          </p>
+        </div>
+
+        <div id="admin-dashboard-stats"></div>
+
+        <div class="section-header" style="margin-top:32px;">
+          <h3 class="section-title">Динамика регистраций</h3>
+          <p class="section-subtitle">
+            Сколько родителей приходит на платформу по месяцам.
+          </p>
+        </div>
+        <div id="admin-dashboard-users"></div>
+
+        <div class="section-header" style="margin-top:32px;">
+          <h3 class="section-title">Записи на занятия</h3>
+          <p class="section-subtitle">
+            Новые и подтверждённые записи детей на кружки.
+          </p>
+        </div>
+        <div id="admin-dashboard-enrollments"></div>
+      </section>
+
+      <!-- 2. Центры и подписки -->
+      <section id="admin-centers" class="parent-section" style="display:none;">
+        <div class="section-header">
+          <h2 class="section-title">Центры и их тарифы</h2>
+          <p class="section-subtitle">
+            Управление статусом центров и продление подписок.
+          </p>
+        </div>
+
+        <div id="admin-centers-list">
+          Загрузка центров...
+        </div>
+      </section>
+
+      <!-- 3. Родители -->
+      <section id="admin-parents" class="parent-section" style="display:none;">
+        <div class="section-header">
+          <h2 class="section-title">Родители</h2>
+          <p class="section-subtitle">
+            Список зарегистрированных родителей и краткая информация о них.
+          </p>
+        </div>
+
+        <div id="admin-parents-list">
+          Загрузка родителей...
+        </div>
+      </section>
+
+      <!-- 4. Аналитика -->
+      <section id="admin-analytics" class="parent-section" style="display:none;">
+        <div class="section-header">
+          <h2 class="section-title">Аналитика платформы</h2>
+          <p class="section-subtitle">
+            Возраст детей, популярные категории кружков и география центров.
+          </p>
+        </div>
+
+        <div class="grid-analytics">
+          <div class="analytics-block">
+            <h3 class="section-title">Возраст детей</h3>
+            <div id="admin-analytics-age"></div>
+          </div>
+
+          <div class="analytics-block">
+            <h3 class="section-title">Популярные категории</h3>
+            <div id="admin-analytics-categories"></div>
+          </div>
+
+          <div class="analytics-block">
+            <h3 class="section-title">Города центров</h3>
+            <div id="admin-analytics-cities"></div>
+          </div>
+        </div>
+      </section>
+
+    </section>
+  </div>
+</main>
+
+<footer class="app-footer">
+  <div class="container app-footer-inner">
+    <div>© 2025 РазвиТайм.</div>
+    <div class="footer-links">
+      <a href="#">О платформе</a>
+      <a href="#">Для родителей</a>
+      <a href="#">Для центров</a>
+      <a href="#">Контакты</a>
+    </div>
+  </div>
+</footer>
+
+<!-- ВАЖНО: только config + admin.js, без auth.js -->
+<script src="config.js"></script>
+<script src="admin.js"></script>
+
+</body>
+</html>

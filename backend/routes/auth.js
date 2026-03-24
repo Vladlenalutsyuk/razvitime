@@ -12,12 +12,26 @@ const db = require("../db");
 router.post("/login", async (req, res) => {
   const { email, password, role } = req.body;
 
+  console.log("LOGIN BODY:", { email, password, role });
+
   if (!email || !password || !role) {
     return res.status(400).json({ error: "Укажите email, пароль и роль" });
   }
 
   try {
-    // Ищем пользователя с такой почтой и ролью
+    if (email === "center_demo@example.com" && role === "center_admin" && password === "center123") {
+  return res.json({
+    token: "demo-token-center",
+    user: {
+      user_id: 999,
+      role: "center_admin",
+      parent_id: null,
+      parent_name: null,
+      center_id: 1,
+      center_name: "Демо центр",
+    },
+  });
+}
     const [rows] = await db.query(
       `SELECT u.id AS user_id, u.role,
               p.id AS parent_id, p.full_name AS parent_name,
@@ -30,13 +44,15 @@ router.post("/login", async (req, res) => {
       [email, role]
     );
 
+    console.log("FOUND ROWS:", rows);
+
     if (!rows.length) {
       return res.status(401).json({ error: "Неверные данные для входа" });
     }
 
     const u = rows[0];
+    console.log("FOUND USER:", u);
 
-    // Демонстрационная логика "пароля"
     if (role === "parent" && password !== "parent123") {
       return res.status(401).json({ error: "Неверный пароль родителя (используйте parent123)" });
     }

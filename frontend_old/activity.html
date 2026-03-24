@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Занятие — РазвиТайм</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="app-header">
+  <div class="container app-header-inner">
+    <div class="logo-block">
+      <img src="assets/logo.png" alt="РазвиТайм" class="logo-image">
+      <div class="logo-texts">
+        <div class="logo-text-main">РазвиТайм</div>
+        <div class="logo-text-sub">умное расписание для семьи</div>
+      </div>
+    </div>
+    <nav class="nav-links">
+      <a href="index.html">Главная</a>
+      <a href="search.html">Найти занятия</a>
+      <a href="schedule.html">Умное расписание</a>
+      <a href="reminders.html">Напоминания</a>
+    </nav>
+  </div>
+</header>
+
+<main class="page-parent" style="padding-top:24px;">
+  <div class="container">
+    <div id="activity-card" class="split-card">
+      Загрузка информации о занятии...
+    </div>
+  </div>
+
+  <!-- Модальное окно для напоминания -->
+  <div id="reminder-modal" class="modal-backdrop" style="display:none;">
+    <div class="modal-card">
+      <h3>Создать напоминание</h3>
+      <p class="section-subtitle" id="reminder-activity-title"></p>
+
+      <div class="auth-field">
+        <label for="reminder-time">Время напоминания</label>
+        <select id="reminder-time">
+          <option value="15m">За 15 минут до занятия</option>
+          <option value="1h">За 1 час до занятия</option>
+          <option value="1d">За день до занятия</option>
+          <option value="0">В день занятия</option>
+        </select>
+      </div>
+
+      <div class="auth-field">
+        <label for="reminder-note">Заметка</label>
+        <textarea id="reminder-note" class="filter-input" rows="3"
+                  placeholder="Что взять с собой? Или заметка..."></textarea>
+      </div>
+
+      <div style="display:flex;gap:8px;margin-top:10px;">
+        <button class="btn btn-primary btn-sm" id="reminder-save-btn">Создать</button>
+        <button class="btn btn-outline btn-sm" id="reminder-cancel-btn">Отмена</button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer class="app-footer">
+  <div class="container app-footer-inner">
+    <div>© 2025 РазвиТайм.</div>
+    <div class="footer-links">
+      <a href="#">О платформе</a>
+      <a href="#">Для родителей</a>
+      <a href="#">Для центров</a>
+      <a href="#">Контакты</a>
+    </div>
+  </div>
+</footer>
+
+<script src="config.js"></script>
+<script>
+  const API_BASE = "http://localhost:5000";
+
+  function getQueryId() {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("id");
+  }
+
+  async function loadActivity() {
+    const id = getQueryId();
+    const box = document.getElementById("activity-card");
+    if (!id) {
+      box.textContent = "Не указан идентификатор занятия.";
+      return;
+    }
+    try {
+      const res = await fetch(`${API_BASE}/api/activities/${id}`);
+      if (!res.ok) throw new Error("not ok");
+      const a = await res.json();
+
+      box.innerHTML = `
+        <h1 class="section-title">${a.title}</h1>
+        <p class="section-subtitle">
+          Возраст: ${a.min_age || "?"}–${a.max_age || "?"} лет
+        </p>
+
+        <div class="section-subtitle">
+          Центр:
+          <button class="link-as-button" onclick="window.location.href='center.html?id=${a.center_id}'">
+            ${a.center_name}
+          </button>
+        </div>
+
+        <p class="section-subtitle">
+          Местоположение: ${a.center_city || ""} ${a.center_address ? "· " + a.center_address : ""}
+        </p>
+
+        <div style="margin-top:12px;">
+          <h3>Описание занятия</h3>
+          <p>${a.description || "Описание отсутствует."}</p>
+        </div>
+
+        <div style="margin-top:16px;">
+          <button class="btn btn-primary btn-sm" id="create-reminder-btn">
+            🔔 Создать напоминание
+          </button>
+        </div>
+      `;
+
+      const btn = document.getElementById("create-reminder-btn");
+      if (btn) {
+        btn.addEventListener("click", () => openReminderModal(a));
+      }
+    } catch (e) {
+      console.error(e);
+      box.textContent = "Не удалось загрузить занятие.";
+    }
+  }
+
+  // --- Напоминания (локально, через localStorage) ---
+
+  const REMINDERS_KEY = "razvitime_reminders";
+
+  function getReminders() {
+    try {
+      return JSON.parse(localStorage.getItem(REMINDERS_KEY)) || [];
+    } catch {
+      return [];
+    }
+  }
+
+  function saveReminders(list) {
+    localStorage.setItem(REMINDERS_KEY, JSON.stringify(list));
+  }
+
+  function addReminder(rem) {
+    const list = getReminders();
+    list.push(rem);
+    saveReminders(list);
+  }
+
+  function openReminderModal(activity) {
+    const modal = document.getElementById("reminder-modal");
+    const titleEl = document.getElementById("reminder-activity-title");
+    const saveBtn = document.getElementById("reminder-save-btn");
+    const cancelBtn = document.getElementById("reminder-cancel-btn");
+    const timeSel = document.getElementById("reminder-time");
+    const noteInput = document.getElementById("reminder-note");
+
+    titleEl.textContent = activity.title;
+    noteInput.value = "";
+
+    modal.style.display = "flex";
+
+    const closeModal = () => {
+      modal.style.display = "none";
+      saveBtn.onclick = null;
+      cancelBtn.onclick = null;
+    };
+
+    cancelBtn.onclick = closeModal;
+
+    saveBtn.onclick = () => {
+      const when = timeSel.value;
+      const note = noteInput.value.trim();
+      addReminder({
+        id: Date.now(),
+        activity_id: activity.id,
+        title: activity.title,
+        center_name: activity.center_name,
+        time_label:
+          when === "15m"
+            ? "За 15 минут до занятия"
+            : when === "1h"
+            ? "За 1 час до занятия"
+            : when === "1d"
+            ? "За день до занятия"
+            : "В день занятия",
+        note,
+        created_at: new Date().toISOString(),
+        read: false,
+      });
+      alert("Напоминание сохранено. Его можно посмотреть по значку колокольчика.");
+      closeModal();
+    };
+  }
+
+  document.addEventListener("DOMContentLoaded", loadActivity);
+</script>
+</body>
+</html>

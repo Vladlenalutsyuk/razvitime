@@ -1,0 +1,243 @@
+-- ===========================================================
+--   БЛОК 1 — ПОЛНЫЙ СБРОС И СОЗДАНИЕ НОВОЙ БД ДЛЯ BACKEND
+-- ===========================================================
+
+DROP DATABASE IF EXISTS razvitime;
+CREATE DATABASE razvitime
+  DEFAULT CHARACTER SET utf8mb4
+  DEFAULT COLLATE utf8mb4_unicode_ci;
+
+USE razvitime;
+
+-- ===========================================================
+--  USERS — система пользователей
+--  backend использует поля:
+--  id, email, password_hash, role
+-- ===========================================================
+CREATE TABLE users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    role ENUM('parent','center_admin','admin') NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+-- ===========================================================
+--  PARENTS — профиль родителя
+--  backend читает поля:
+--  full_name, phone, city, telegram, whatsapp, extra_email
+-- ===========================================================
+CREATE TABLE parents (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    full_name VARCHAR(255),
+    phone VARCHAR(50),
+    city VARCHAR(100),
+    telegram VARCHAR(100),
+    whatsapp VARCHAR(100),
+    extra_email VARCHAR(255),
+    avatar_url VARCHAR(255),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+        ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- ===========================================================
+--  KIDS — дети родителя
+--  backend использует поля:
+--  full_name, birth_date, gender
+-- ===========================================================
+CREATE TABLE kids (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    parent_id INT NOT NULL,
+    full_name VARCHAR(255) NOT NULL,
+    birth_date DATE,
+    gender ENUM('boy','girl','other'),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (parent_id) REFERENCES parents(id)
+        ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- ===========================================================
+--  CENTERS — профиль центра
+--  backend использует поля:
+--  id, user_id, name, description, city, address,
+--  phone, whatsapp, website, instagram
+-- ===========================================================
+CREATE TABLE centers (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL UNIQUE,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    city VARCHAR(100),
+    address VARCHAR(255),
+    phone VARCHAR(50),
+    whatsapp VARCHAR(50),
+    website VARCHAR(255),
+    instagram VARCHAR(255),
+    is_active BOOLEAN DEFAULT TRUE,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+        ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- ===========================================================
+--  ACTIVITIES — занятия центра
+--  backend ожидает поля:
+--  id, center_id, title, category, description,
+--  min_age, max_age, level, is_active
+-- ===========================================================
+CREATE TABLE activities (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    center_id INT NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    category VARCHAR(100),
+    description TEXT,
+    min_age INT,
+    max_age INT,
+    level VARCHAR(100),
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (center_id) REFERENCES centers(id)
+        ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- ===========================================================
+--  ACTIVITY_GROUPS — группы занятий
+--  backend активно использует их
+-- ===========================================================
+CREATE TABLE activity_groups (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    activity_id INT NOT NULL,
+    name VARCHAR(255),
+    min_age INT,
+    max_age INT,
+    weekday TINYINT,
+    start_time TIME,
+    end_time TIME,
+    capacity INT,
+    price DECIMAL(10,2),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (activity_id) REFERENCES activities(id)
+        ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- ===========================================================
+--  ENROLLMENTS — заявки детей на занятия
+--  backend ожидает:
+--  status, comment, created_at
+-- ===========================================================
+CREATE TABLE enrollments (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    kid_id INT NOT NULL,
+    group_id INT NOT NULL,
+    status ENUM('pending','approved','rejected','waitlist','left') DEFAULT 'pending',
+    comment TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (kid_id, group_id),
+    FOREIGN KEY (kid_id) REFERENCES kids(id)
+        ON DELETE CASCADE,
+    FOREIGN KEY (group_id) REFERENCES activity_groups(id)
+        ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- ===========================================================
+--  SCHOOL_LESSONS — школьное расписание
+-- ===========================================================
+CREATE TABLE school_lessons (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    kid_id INT NOT NULL,
+    weekday TINYINT NOT NULL,
+    lesson_number TINYINT,
+    start_time TIME,
+    end_time TIME,
+    subject VARCHAR(255),
+    classroom VARCHAR(50),
+    FOREIGN KEY (kid_id) REFERENCES kids(id)
+        ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- ===========================================================
+--  SCHEDULE_SLOTS — объединённое расписание
+--  backend ожидает поля:
+--  kid_id, group_id, type, subject, start_time, end_time
+-- ===========================================================
+CREATE TABLE schedule_slots (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    kid_id INT,
+    group_id INT,
+    type ENUM('school','activity') NOT NULL,
+    weekday TINYINT NOT NULL,
+    start_time TIME NOT NULL,
+    end_time TIME NOT NULL,
+    subject VARCHAR(255),
+    location VARCHAR(255),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (kid_id) REFERENCES kids(id)
+        ON DELETE CASCADE,
+    FOREIGN KEY (group_id) REFERENCES activity_groups(id)
+        ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- ===========================================================
+--  TARIFF_PLANS — тарифы центров
+-- ===========================================================
+CREATE TABLE tariff_plans (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    code VARCHAR(50) NOT NULL UNIQUE,
+    name VARCHAR(255),
+    max_activities INT,
+    price_month DECIMAL(10,2)
+) ENGINE=InnoDB;
+
+-- ===========================================================
+--  CENTER_SUBSCRIPTIONS — подписка центра
+-- ===========================================================
+CREATE TABLE center_subscriptions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    center_id INT NOT NULL,
+    tariff_id INT NOT NULL,
+    start_date DATE,
+    end_date DATE,
+    is_active BOOLEAN DEFAULT TRUE,
+    FOREIGN KEY (center_id) REFERENCES centers(id)
+        ON DELETE CASCADE,
+    FOREIGN KEY (tariff_id) REFERENCES tariff_plans(id)
+        ON DELETE RESTRICT
+) ENGINE=InnoDB;
+
+-- ===========================================================
+--  FAVORITE_CENTERS — избранное у родителей
+-- ===========================================================
+CREATE TABLE favorite_centers (
+    parent_id INT NOT NULL,
+    center_id INT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (parent_id, center_id),
+    FOREIGN KEY (parent_id) REFERENCES parents(id)
+        ON DELETE CASCADE,
+    FOREIGN KEY (center_id) REFERENCES centers(id)
+        ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- ===========================================================
+--  REMINDERS — напоминания
+-- ===========================================================
+CREATE TABLE reminders (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    parent_id INT NOT NULL,
+    kid_id INT,
+    activity_id INT,
+    schedule_slot_id INT,
+    remind_at DATETIME,
+    note VARCHAR(500),
+    is_read BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (parent_id) REFERENCES parents(id)
+        ON DELETE CASCADE,
+    FOREIGN KEY (kid_id) REFERENCES kids(id)
+        ON DELETE SET NULL,
+    FOREIGN KEY (activity_id) REFERENCES activities(id)
+        ON DELETE SET NULL,
+    FOREIGN KEY (schedule_slot_id) REFERENCES schedule_slots(id)
+        ON DELETE SET NULL
+) ENGINE=InnoDB;

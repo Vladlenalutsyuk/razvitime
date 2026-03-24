@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Кабинет детского центра — РазвиТайм</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="app-header">
+  <div class="container app-header-inner">
+    <div class="logo-block">
+      <img src="assets/logo.png" alt="РазвиТайм" class="logo-image">
+      <div class="logo-texts">
+        <div class="logo-text-main">РазвиТайм</div>
+        <div class="logo-text-sub">кабинет детского центра</div>
+      </div>
+    </div>
+
+    <button class="btn btn-secondary btn-sm" id="logout-btn-center">Выйти</button>
+  </div>
+</header>
+
+<main class="page">
+  <div class="container" style="display:flex; gap:24px; margin-top:24px;">
+
+    <!-- ЛЕВОЕ МЕНЮ -->
+    <aside style="width:260px;">
+      <div class="split-card">
+        <h3 style="margin-bottom:12px;">Навигация центра</h3>
+        <button class="btn btn-secondary btn-sm tab-btn active" data-section="center-dashboard">
+          Информация
+        </button>
+        <button class="btn btn-outline btn-sm tab-btn" data-section="center-profile">
+          О центре
+        </button>
+        <button class="btn btn-outline btn-sm tab-btn" data-section="center-activities">
+          Занятия
+        </button>
+        <button class="btn btn-outline btn-sm tab-btn" data-section="center-enrollments">
+          Записи <span class="badge" id="center-enrollments-badge" hidden></span>
+        </button>
+        <button class="btn btn-outline btn-sm tab-btn" data-section="center-help">
+          Помощь
+        </button>
+      </div>
+    </aside>
+
+    <!-- ПРАВАЯ ЧАСТЬ -->
+    <section style="flex:1; display:flex; flex-direction:column; gap:24px;">
+
+      <!-- 3.1. Информация (бывший дашборд) -->
+      <section id="center-dashboard" class="parent-section" style="display:block;">
+        <div class="section-header">
+          <h1 class="section-title">Информация</h1>
+          <p class="section-subtitle">
+            Краткая информация о вашем центре: активный тариф, статистика и последние записи.
+          </p>
+        </div>
+
+        <div id="center-dashboard-header" class="split-card" style="margin-bottom:16px;">
+          Загрузка данных центра...
+        </div>
+
+        <div id="center-dashboard-stats"></div>
+
+        <div class="split-card">
+          <h3>Последние записи</h3>
+          <div id="center-dashboard-latest" class="section-subtitle">
+            Загрузка последних записей...
+          </div>
+        </div>
+      </section>
+
+      <!-- 3.2. О центре (бывш. Информация о центре) -->
+      <section id="center-profile" class="parent-section" style="display:none;">
+        <div class="section-header">
+          <h1 class="section-title">О центре</h1>
+          <p class="section-subtitle">Эти данные будут видеть родители на страницах ваших кружков.</p>
+        </div>
+
+        <div class="split-card">
+          <div class="form-grid">
+            <label>
+              Название центра
+              <input type="text" id="center-name">
+            </label>
+            <label>
+              Город
+              <input type="text" id="center-city">
+            </label>
+            <label>
+              Адрес
+              <input type="text" id="center-address">
+            </label>
+            <label>
+              Телефон
+              <input type="text" id="center-phone">
+            </label>
+            <label>
+              WhatsApp
+              <input type="text" id="center-whatsapp">
+            </label>
+            <label>
+              Сайт
+              <input type="text" id="center-website">
+            </label>
+            <label>
+              Instagram
+              <input type="text" id="center-instagram" placeholder="@your_center">
+            </label>
+          </div>
+
+          <label style="display:block; margin-top:12px;">
+            Описание центра
+            <textarea id="center-description" rows="4"></textarea>
+          </label>
+
+          <div class="split-card-footer" style="margin-top:12px;">
+            <button class="btn btn-primary" id="center-profile-save-btn">Сохранить</button>
+          </div>
+        </div>
+
+        <!-- Преподаватели -->
+        <section style="margin-top:24px;">
+          <h2 class="section-title">Преподаватели</h2>
+          <div class="split-card">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <h3>Список преподавателей</h3>
+              <button class="btn btn-primary btn-sm" id="add-teacher-btn">Добавить учителя</button>
+            </div>
+            <div id="teachers-list" style="margin-top:12px;">
+              Преподаватели ещё не добавлены.
+            </div>
+          </div>
+        </section>
+      </section>
+
+      <!-- 3.3. Занятия (бывш. Мои кружки) -->
+      <section id="center-activities" class="parent-section" style="display:none;">
+        <div class="section-header">
+          <h1 class="section-title">Занятия</h1>
+          <p class="section-subtitle">
+            Добавляйте и редактируйте занятия центра. Эти данные видят родители в поиске и на страницах кружков.
+          </p>
+        </div>
+
+        <div class="split-card">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <h3>Список занятий</h3>
+            <button class="btn btn-primary btn-sm" id="add-activity-btn">+ Добавить занятие</button>
+          </div>
+
+          <div id="activities-list" style="margin-top:12px;">
+            Загрузка кружков...
+          </div>
+        </div>
+
+        <div class="split-card" id="activity-form-block" style="display:none; margin-top:16px;">
+          <h3 id="activity-form-title">Новое занятие</h3>
+          <div class="form-grid">
+            <label>
+              Название
+              <input type="text" id="activity-title">
+            </label>
+            <label>
+              Категория (спорт, творчество, IT...)
+              <input type="text" id="activity-category">
+            </label>
+            <label>
+              Минимальный возраст
+              <input type="number" id="activity-min-age" min="0">
+            </label>
+            <label>
+              Максимальный возраст
+              <input type="number" id="activity-max-age" min="0">
+            </label>
+            <label>
+              Уровень (начальный, продвинутый)
+              <input type="text" id="activity-level">
+            </label>
+            <label style="display:flex; align-items:center; gap:8px; margin-top:18px;">
+              <input type="checkbox" id="activity-active" checked> Активно (видно родителям)
+            </label>
+          </div>
+
+          <label style="display:block; margin-top:12px;">
+            Описание
+            <textarea id="activity-description" rows="4"></textarea>
+          </label>
+
+          <div class="split-card-footer" style="margin-top:12px;">
+            <button class="btn btn-primary btn-sm" id="activity-save-btn">Сохранить</button>
+            <button class="btn btn-outline btn-sm" id="activity-cancel-btn">Отмена</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3.4. Записи (бывш. Заявки) -->
+      <section id="center-enrollments" class="parent-section" style="display:none;">
+        <div class="section-header">
+          <h1 class="section-title">Записи на занятия</h1>
+          <p class="section-subtitle">
+            Обрабатывайте записи от родителей: подтверждайте или отклоняйте.
+          </p>
+        </div>
+
+        <div class="split-card">
+          <div style="display:flex; gap:12px; align-items:flex-end; margin-bottom:12px;">
+            <label>
+              Статус
+              <select id="enroll-filter-status">
+                <option value="">Все</option>
+                <option value="pending">Ожидание</option>
+                <option value="approved">Подтверждено</option>
+                <option value="rejected">Отклонено</option>
+              </select>
+            </label>
+            <button class="btn btn-secondary btn-sm" id="enroll-filter-apply">Обновить</button>
+          </div>
+
+          <div id="enrollments-list">
+            Загрузка заявок...
+          </div>
+        </div>
+      </section>
+
+      <!-- 3.5. Помощь -->
+      <section id="center-help" class="parent-section" style="display:none;">
+        <div class="section-header">
+          <h1 class="section-title">Помощь</h1>
+          <p class="section-subtitle">
+            Инструкция по работе в личном кабинете центра и контакты поддержки.
+          </p>
+        </div>
+
+        <div class="split-card">
+          <h3>Как работать в кабинете центра</h3>
+          <ol class="split-card-steps">
+            <li>Заполните раздел «О центре» — название, контакты, описание.</li>
+            <li>Добавьте преподавателей и занятия в разделах «О центре» и «Занятия».</li>
+            <li>Следите за новыми записями в разделе «Записи» и связывайтесь с родителями.</li>
+            <li>При необходимости измените тариф через администратора платформы.</li>
+          </ol>
+        </div>
+
+        <div class="split-card">
+          <h3>Поддержка</h3>
+          <ul class="split-card-steps">
+            <li>E-mail: <a href="mailto:support@razvitime.demo">support@razvitime.demo</a></li>
+            <li>Телефон: <a href="tel:+7-900-000-00-00">+7 (900) 000-00-00</a> (будни 10:00–18:00)</li>
+          </ul>
+        </div>
+      </section>
+
+    </section>
+  </div>
+</main>
+
+<footer class="app-footer">
+  <div class="container app-footer-inner">
+    <div>© 2025 РазвиТайм. Кабинет детского центра.</div>
+  </div>
+</footer>
+
+<script src="config.js"></script>
+<script src="center.js"></script>
+</body>
+</html>

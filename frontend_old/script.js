@@ -1,6 +1,24 @@
 // frontend/script.js
 const API_BASE = "http://localhost:5000";
 
+function animateStatNumbers() {
+  const numbers = document.querySelectorAll(".stat-number[data-target]");
+  numbers.forEach((el) => {
+    const target = Number(el.dataset.target || el.textContent) || 0;
+    let current = 0;
+    const step = Math.max(1, Math.round(target / 60));
+
+    const timer = setInterval(() => {
+      current += step;
+      if (current >= target) {
+        current = target;
+        clearInterval(timer);
+      }
+      el.textContent = current;
+    }, 20);
+  });
+}
+
 async function loadStats() {
   const statsContainer = document.getElementById("stats-container");
   if (!statsContainer) return;
@@ -12,23 +30,25 @@ async function loadStats() {
     statsContainer.innerHTML = `
       <div class="stats-grid">
         <div class="stat-card">
-          <div class="stat-number stat-green">${data.parents}</div>
+          <div class="stat-number stat-green" data-target="${data.parents}">0</div>
           <div class="stat-label">Зарегистрированных родителей</div>
         </div>
         <div class="stat-card">
-          <div class="stat-number stat-green">${data.kids}</div>
+          <div class="stat-number stat-green" data-target="${data.kids}">0</div>
           <div class="stat-label">Детей в системе</div>
         </div>
         <div class="stat-card">
-          <div class="stat-number stat-orange">${data.activities}</div>
+          <div class="stat-number stat-orange" data-target="${data.activities}">0</div>
           <div class="stat-label">Активных кружков</div>
         </div>
         <div class="stat-card">
-          <div class="stat-number stat-green">${data.centers}</div>
+          <div class="stat-number stat-green" data-target="${data.centers}">0</div>
           <div class="stat-label">Партнёрских центров</div>
         </div>
       </div>
     `;
+
+    animateStatNumbers();
   } catch (err) {
     console.error("Ошибка загрузки статистики:", err);
     if (statsContainer) {
