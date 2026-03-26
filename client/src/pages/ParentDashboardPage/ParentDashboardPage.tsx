@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import Header from '../../components/layout/Header/Header'
 import PageContainer from '../../components/layout/PageContainer/PageContainer'
@@ -17,23 +17,16 @@ import {
   type Child,
 } from '../../api/childrenApi'
 
-import {
-  getActivities,
-  type Activity,
-} from '../../api/activitiesApi'
+import { getActivities, type Activity } from '../../api/activitiesApi'
 
 import {
   getEnrollments,
   deleteEnrollment,
   type Enrollment,
 } from '../../api/enrollmentsApi'
+import { useToast } from '../../components/ui/ToastProvider/ToastProvider'
 
-type Section =
-  | 'search'
-  | 'kids'
-  | 'schedule'
-  | 'profile'
-  | 'help'
+type Section = 'search' | 'kids' | 'schedule' | 'profile' | 'help'
 
 const enrollmentStatusMap: Record<Enrollment['status'], string> = {
   pending: 'На рассмотрении',
@@ -45,6 +38,8 @@ const enrollmentStatusMap: Record<Enrollment['status'], string> = {
 function ParentDashboardPage() {
   const auth = getAuth()
   const userId = auth?.user?.id
+  const isParent = auth?.user?.role === 'parent'
+  const { showToast } = useToast()
 
   const [activeSection, setActiveSection] = useState<Section>('search')
 
@@ -54,6 +49,9 @@ function ParentDashboardPage() {
     whatsapp: '',
     email: '',
     avatar_url: '',
+    full_name: '',
+    preferred_contact: null,
+    notifications_enabled: true,
   })
 
   const [profileLoading, setProfileLoading] = useState(false)
@@ -92,7 +90,17 @@ function ParentDashboardPage() {
     'Родитель'
 
   useEffect(() => {
-    if (typeof userId !== 'number') {
+    if (typeof userId !== 'number' || !isParent) {
+      setProfile({
+        city: '',
+        telegram: '',
+        whatsapp: '',
+        email: '',
+        avatar_url: '',
+        full_name: '',
+        preferred_contact: null,
+        notifications_enabled: true,
+      })
       return
     }
 
@@ -104,14 +112,14 @@ function ParentDashboardPage() {
         const data = await getParentProfile(safeUserId)
 
         setProfile({
+          id: data.id,
+          user_id: data.user_id,
           city: data.city || '',
           telegram: data.telegram || '',
           whatsapp: data.whatsapp || '',
           email: data.email || '',
           avatar_url: data.avatar_url || '',
           full_name: data.full_name || '',
-          id: data.id,
-          user_id: data.user_id,
           preferred_contact: data.preferred_contact || null,
           notifications_enabled: data.notifications_enabled ?? true,
         })
@@ -123,10 +131,10 @@ function ParentDashboardPage() {
     }
 
     loadProfile()
-  }, [userId])
+  }, [userId, isParent])
 
   useEffect(() => {
-    if (typeof userId !== 'number') {
+    if (typeof userId !== 'number' || !isParent) {
       setKids([])
       return
     }
@@ -147,7 +155,7 @@ function ParentDashboardPage() {
     }
 
     loadChildren()
-  }, [userId])
+  }, [userId, isParent])
 
   useEffect(() => {
     async function loadActivities() {
@@ -174,7 +182,7 @@ function ParentDashboardPage() {
   }, [filters])
 
   useEffect(() => {
-    if (typeof userId !== 'number') {
+    if (typeof userId !== 'number' || !isParent) {
       setEnrollments([])
       return
     }
@@ -195,40 +203,10 @@ function ParentDashboardPage() {
     }
 
     loadEnrollments()
-  }, [userId, activeSection])
-
-  const filteredActivities = useMemo(() => {
-    return activities.filter((activity) => {
-      const text = filters.text.toLowerCase().trim()
-      const city = filters.city.toLowerCase().trim()
-      const age = filters.age.trim()
-      const category = filters.category.trim()
-
-      const matchesText =
-        text === '' ||
-        activity.title.toLowerCase().includes(text) ||
-        activity.center_name.toLowerCase().includes(text) ||
-        activity.address.toLowerCase().includes(text)
-
-      const matchesCity =
-        city === '' ||
-        activity.city.toLowerCase().includes(city)
-
-      const matchesAge =
-        age === '' ||
-        (activity.age_min <= Number(age) && activity.age_max >= Number(age)) ||
-        activity.age_max >= Number(age)
-
-      const matchesCategory =
-        category === '' ||
-        activity.category === category
-
-      return matchesText && matchesCity && matchesAge && matchesCategory
-    })
-  }, [activities, filters])
+  }, [userId, isParent])
 
   function handleFilterChange(
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    e: ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) {
     const { name, value } = e.target
 
@@ -239,7 +217,7 @@ function ParentDashboardPage() {
   }
 
   function handleKidChange(
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    e: ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) {
     const { name, value } = e.target
 
@@ -251,17 +229,17 @@ function ParentDashboardPage() {
 
   async function handleAddKid() {
     if (typeof userId !== 'number') {
-      alert('Пользователь не найден')
+      showToast('Пользователь не найден', { type: 'error' })
       return
     }
 
     if (!newKid.name.trim()) {
-      alert('Введите имя ребёнка')
+      showToast('Введите имя ребёнка', { type: 'error' })
       return
     }
 
     if (!newKid.birthdate.trim()) {
-      alert('Введите дату рождения')
+      showToast('Введите дату рождения', { type: 'error' })
       return
     }
 
@@ -273,7 +251,7 @@ function ParentDashboardPage() {
         name: newKid.name.trim(),
         birthdate: newKid.birthdate,
         gender: newKid.gender || null,
-        photo_url: newKid.photo_url || null,
+        photo_url: newKid.photo_url.trim() || null,
       })
 
       setKids((prev) => [createdChild, ...prev])
@@ -286,12 +264,12 @@ function ParentDashboardPage() {
       })
 
       setIsAddingKid(false)
+      showToast('Ребёнок добавлен', { type: 'success' })
     } catch (error) {
       console.error(error)
-      alert(
-        error instanceof Error
-          ? error.message
-          : 'Не удалось добавить ребёнка'
+      showToast(
+        error instanceof Error ? error.message : 'Не удалось добавить ребёнка',
+        { type: 'error' }
       )
     } finally {
       setKidSubmitting(false)
@@ -304,19 +282,17 @@ function ParentDashboardPage() {
 
       setKids((prev) => prev.filter((kid) => kid.id !== id))
       setEnrollments((prev) => prev.filter((item) => item.child_id !== id))
+      showToast('Ребёнок удалён', { type: 'success' })
     } catch (error) {
       console.error(error)
-      alert(
-        error instanceof Error
-          ? error.message
-          : 'Не удалось удалить ребёнка'
+      showToast(
+        error instanceof Error ? error.message : 'Не удалось удалить ребёнка',
+        { type: 'error' }
       )
     }
   }
 
-  function handleProfileChange(
-    e: React.ChangeEvent<HTMLInputElement>
-  ) {
+  function handleProfileChange(e: ChangeEvent<HTMLInputElement>) {
     const { name, value } = e.target
 
     setProfile((prev) => ({
@@ -329,7 +305,7 @@ function ParentDashboardPage() {
     e.preventDefault()
 
     if (typeof userId !== 'number') {
-      alert('Пользователь не найден')
+      showToast('Пользователь не найден', { type: 'error' })
       return
     }
 
@@ -354,13 +330,12 @@ function ParentDashboardPage() {
         avatar_url: data.avatar_url || '',
       }))
 
-      alert('Профиль сохранён')
+      showToast('Профиль сохранён', { type: 'success' })
     } catch (error) {
       console.error(error)
-      alert(
-        error instanceof Error
-          ? error.message
-          : 'Не удалось сохранить профиль'
+      showToast(
+        error instanceof Error ? error.message : 'Не удалось сохранить профиль',
+        { type: 'error' }
       )
     } finally {
       setProfileSaving(false)
@@ -371,14 +346,38 @@ function ParentDashboardPage() {
     try {
       await deleteEnrollment(enrollmentId)
       setEnrollments((prev) => prev.filter((item) => item.id !== enrollmentId))
+      showToast('Запись отменена', { type: 'success' })
     } catch (error) {
       console.error(error)
-      alert(
-        error instanceof Error
-          ? error.message
-          : 'Не удалось отменить запись'
+      showToast(
+        error instanceof Error ? error.message : 'Не удалось отменить запись',
+        { type: 'error' }
       )
     }
+  }
+
+  if (!auth || !isParent || typeof userId !== 'number') {
+    return (
+      <>
+        <Header />
+        <main className="page-parent">
+          <PageContainer>
+            <section className="section">
+              <div className="section-header">
+                <h1 className="section-title">Кабинет родителя недоступен</h1>
+                <p className="section-subtitle">
+                  Войдите как родитель, чтобы пользоваться этим разделом.
+                </p>
+              </div>
+
+              <Link to="/login" className="btn btn-primary">
+                Перейти ко входу
+              </Link>
+            </section>
+          </PageContainer>
+        </main>
+      </>
+    )
   }
 
   return (
@@ -496,35 +495,47 @@ function ParentDashboardPage() {
                       <div className="search-header-line">
                         <div>
                           <h2>Доступные занятия</h2>
-                          <p>Найдено: {filteredActivities.length}</p>
+                          <p>Найдено: {activities.length}</p>
                         </div>
                       </div>
 
                       {activitiesLoading && <p>Загрузка кружков...</p>}
 
                       <div className="activities-list">
-                        {!activitiesLoading && filteredActivities.length === 0 && (
+                        {!activitiesLoading && activities.length === 0 && (
                           <p>По вашему запросу ничего не найдено.</p>
                         )}
 
-                        {filteredActivities.map((activity) => (
+                        {activities.map((activity) => (
                           <article
                             key={activity.id}
                             className="feature-card"
                             style={{ marginBottom: '12px' }}
                           >
                             <h3>{activity.title}</h3>
-                            <p><b>Центр:</b> {activity.center_name}</p>
-                            <p><b>Город:</b> {activity.city}</p>
-                            <p><b>Возраст:</b> {activity.age_min}–{activity.age_max}</p>
-                            <p><b>Категория:</b> {activity.category}</p>
-                            <p><b>Адрес:</b> {activity.address}</p>
+                            <p>
+                              <b>Центр:</b> {activity.center_name}
+                            </p>
+                            <p>
+                              <b>Город:</b> {activity.city}
+                            </p>
+                            <p>
+                              <b>Возраст:</b> {activity.age_min}–{activity.age_max}
+                            </p>
+                            <p>
+                              <b>Категория:</b> {activity.category}
+                            </p>
+                            <p>
+                              <b>Адрес:</b> {activity.address}
+                            </p>
 
                             {activity.short_description && (
                               <p>{activity.short_description}</p>
                             )}
 
-                            <p><b>Цена:</b> {activity.price} ₽</p>
+                            <p>
+                              <b>Цена:</b> {activity.price} ₽
+                            </p>
 
                             <div style={{ marginTop: '12px' }}>
                               <Link
@@ -584,10 +595,7 @@ function ParentDashboardPage() {
                   </div>
 
                   {isAddingKid && (
-                    <div
-                      className="reminders-card"
-                      style={{ marginTop: '16px' }}
-                    >
+                    <div className="reminders-card" style={{ marginTop: '16px' }}>
                       <h3>Добавить ребёнка</h3>
 
                       <div className="auth-field">
@@ -685,12 +693,26 @@ function ParentDashboardPage() {
                       >
                         <h3>{item.title}</h3>
 
-                        <p><b>Ребёнок:</b> {item.child_name}</p>
-                        <p><b>Центр:</b> {item.center_name}</p>
-                        <p><b>Город:</b> {item.city}</p>
-                        <p><b>Категория:</b> {item.category}</p>
-                        {item.price != null && <p><b>Цена:</b> {item.price} ₽</p>}
-                        <p><b>Статус:</b> {enrollmentStatusMap[item.status]}</p>
+                        <p>
+                          <b>Ребёнок:</b> {item.child_name}
+                        </p>
+                        <p>
+                          <b>Центр:</b> {item.center_name}
+                        </p>
+                        <p>
+                          <b>Город:</b> {item.city}
+                        </p>
+                        <p>
+                          <b>Категория:</b> {item.category}
+                        </p>
+                        {item.price != null && (
+                          <p>
+                            <b>Цена:</b> {item.price} ₽
+                          </p>
+                        )}
+                        <p>
+                          <b>Статус:</b> {enrollmentStatusMap[item.status]}
+                        </p>
 
                         <button
                           className="btn btn-outline btn-sm"
@@ -709,18 +731,15 @@ function ParentDashboardPage() {
                   <div className="section-header">
                     <h1 className="section-title">Мой профиль</h1>
                     <p className="section-subtitle">
-                      Добро пожаловать, {userName}. Здесь можно хранить
-                      контактные данные родителя.
+                      Добро пожаловать, {userName}. Здесь можно хранить контактные
+                      данные родителя.
                     </p>
                   </div>
 
                   {profileLoading && <p>Загрузка профиля...</p>}
 
                   {!profileLoading && (
-                    <form
-                      className="reminders-card"
-                      onSubmit={handleProfileSubmit}
-                    >
+                    <form className="reminders-card" onSubmit={handleProfileSubmit}>
                       <div className="auth-field">
                         <label>Город</label>
                         <input

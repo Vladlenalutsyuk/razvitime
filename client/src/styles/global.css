@@ -1679,3 +1679,157 @@ body {
   margin-top: 4px;
   text-align: right;
 }
+
+
+/* ===== МОДАЛКА ===== */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 24px;
+  z-index: 1000;
+
+  backdrop-filter: blur(4px);
+}
+
+.modal-content {
+  width: 100%;
+  max-width: 760px;
+  max-height: 90vh;
+
+  overflow-y: auto;
+
+  border-radius: 20px;
+  padding: 24px;
+
+  background: #fff;
+
+  /* мягкая тень */
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+
+  animation: modalFadeIn 0.2s ease;
+}
+
+/* header модалки */
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+
+  margin-bottom: 16px;
+}
+
+.modal-title {
+  margin: 0;
+}
+
+.modal-subtitle {
+  margin: 6px 0 0 0;
+  color: #666;
+  font-size: 14px;
+}
+
+/* футер кнопок */
+.modal-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 20px;
+}
+
+/* скролл красивый */
+.modal-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.modal-content::-webkit-scrollbar-thumb {
+  background: #ddd;
+  border-radius: 6px;
+}
+
+/* анимация появления */
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ===== TOAST ===== */
+
+.toast-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 1100;
+
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  width: min(360px, calc(100vw - 32px));
+}
+
+.toast {
+  border-radius: 16px;
+  padding: 14px 16px;
+  color: #fff;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+  animation: toast-slide-in 0.2s ease;
+}
+
+.toast--success {
+  background: #1f9d55;
+}
+
+.toast--error {
+  background: #dc2626;
+}
+
+.toast--info {
+  background: #2563eb;
+}
+
+.toast__content {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.toast__message {
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.toast__close {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  padding: 0;
+}
+
+@keyframes toast-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) translateX(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) translateX(0);
+  }
+}

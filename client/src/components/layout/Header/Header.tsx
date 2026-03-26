@@ -1,21 +1,35 @@
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { clearAuth, getAuth } from '../../../utils/auth'
-import { Link, useLocation } from 'react-router-dom'
 
 function Header() {
   const auth = getAuth()
+  const navigate = useNavigate()
+  const location = useLocation()
 
-  function handleLogout() {
-    clearAuth()
-    window.location.href = '/login'
-  }
+  const isLoginPage = location.pathname === '/login'
+  const userRole = auth?.user?.role
 
   const userName =
     auth?.user?.name ||
     auth?.user?.parent_name ||
     auth?.user?.center_name ||
     'Пользователь'
-  const location = useLocation()
-  const isLoginPage = location.pathname === '/login'
+
+  const dashboardPath =
+    userRole === 'parent'
+      ? '/parent'
+      : userRole === 'center_admin'
+        ? '/center'
+        : '/'
+
+  function handleLogout() {
+    clearAuth()
+    navigate('/login', { replace: true })
+  }
+
+  function handleLoginClick() {
+    navigate('/login')
+  }
 
   return (
     <header className="app-header">
@@ -35,7 +49,7 @@ function Header() {
 
         <nav className="nav-links">
           <Link to="/">Главная</Link>
-          <Link to="/search">Найти занятия</Link>
+          {auth && <Link to={dashboardPath}>Личный кабинет</Link>}
         </nav>
 
         <div className="nav-auth">
@@ -45,9 +59,7 @@ function Header() {
                 <button
                   type="button"
                   className="btn btn-secondary btn-sm"
-                  onClick={() => {
-                    window.location.href = '/login'
-                  }}
+                  onClick={handleLoginClick}
                 >
                   Войти
                 </button>
@@ -60,6 +72,11 @@ function Header() {
           ) : (
             <>
               <span style={{ marginRight: '12px' }}>{userName}</span>
+
+              <Link to={dashboardPath} className="btn btn-primary btn-sm">
+                Кабинет
+              </Link>
+
               <button
                 type="button"
                 className="btn btn-secondary btn-sm"

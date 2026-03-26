@@ -15,6 +15,7 @@ import {
   deleteEnrollment,
   type Enrollment,
 } from '../../api/enrollmentsApi'
+import { useToast } from '../../components/ui/ToastProvider/ToastProvider'
 
 const weekdayMap: Record<number, string> = {
   1: 'Понедельник',
@@ -40,6 +41,7 @@ function formatSessionTime(session: ActivitySession) {
 function ActivityPage() {
   const { id } = useParams()
   const auth = getAuth()
+  const { showToast } = useToast()
 
   const userId = auth?.user?.id
   const activityId = Number(id)
@@ -79,52 +81,52 @@ function ActivityPage() {
   }, [activityId])
 
   useEffect(() => {
-  if (typeof userId !== 'number') {
-    setKids([])
-    return
-  }
-
-  const safeUserId = userId
-
-  async function loadChildren() {
-    try {
-      setKidsLoading(true)
-      const data = await getChildren(safeUserId)
-      setKids(data)
-    } catch (error) {
-      console.error(error)
+    if (typeof userId !== 'number') {
       setKids([])
-    } finally {
-      setKidsLoading(false)
+      return
     }
-  }
 
-  loadChildren()
-}, [userId])
+    const safeUserId = userId
+
+    async function loadChildren() {
+      try {
+        setKidsLoading(true)
+        const data = await getChildren(safeUserId)
+        setKids(data)
+      } catch (error) {
+        console.error(error)
+        setKids([])
+      } finally {
+        setKidsLoading(false)
+      }
+    }
+
+    loadChildren()
+  }, [userId])
 
   useEffect(() => {
-  if (typeof userId !== 'number') {
-    setEnrollments([])
-    return
-  }
-
-  const safeUserId = userId
-
-  async function loadEnrollments() {
-    try {
-      setEnrollmentsLoading(true)
-      const data = await getEnrollments(safeUserId)
-      setEnrollments(data)
-    } catch (error) {
-      console.error(error)
+    if (typeof userId !== 'number') {
       setEnrollments([])
-    } finally {
-      setEnrollmentsLoading(false)
+      return
     }
-  }
 
-  loadEnrollments()
-}, [userId])
+    const safeUserId = userId
+
+    async function loadEnrollments() {
+      try {
+        setEnrollmentsLoading(true)
+        const data = await getEnrollments(safeUserId)
+        setEnrollments(data)
+      } catch (error) {
+        console.error(error)
+        setEnrollments([])
+      } finally {
+        setEnrollmentsLoading(false)
+      }
+    }
+
+    loadEnrollments()
+  }, [userId])
 
   const currentEnrollment = useMemo(() => {
     return enrollments.find((item) => item.activity_id === activityId) || null
@@ -148,22 +150,22 @@ function ActivityPage() {
 
   async function handleEnroll() {
     if (!auth) {
-      alert('Сначала войдите в аккаунт')
+      showToast('Сначала войдите в аккаунт', { type: 'error' })
       return
     }
 
     if (auth.user.role !== 'parent') {
-      alert('Запись доступна только родителю')
+      showToast('Запись доступна только родителю', { type: 'error' })
       return
     }
 
     if (!activity) {
-      alert('Кружок не найден')
+      showToast('Кружок не найден', { type: 'error' })
       return
     }
 
     if (!selectedKidId) {
-      alert('Сначала выберите ребёнка')
+      showToast('Сначала выберите ребёнка', { type: 'error' })
       return
     }
 
@@ -180,17 +182,19 @@ function ActivityPage() {
 
       const selectedKid = kids.find((kid) => kid.id === Number(selectedKidId))
 
-      alert(
+      showToast(
         selectedKid
           ? `Вы записали ребёнка "${selectedKid.name}" на занятие`
-          : 'Запись создана'
+          : 'Запись создана',
+        { type: 'success' }
       )
     } catch (error) {
       console.error(error)
-      alert(
+      showToast(
         error instanceof Error
           ? error.message
-          : 'Не удалось записать ребёнка на кружок'
+          : 'Не удалось записать ребёнка на кружок',
+        { type: 'error' }
       )
     } finally {
       setActionLoading(false)
@@ -212,11 +216,12 @@ function ActivityPage() {
       )
 
       setSelectedKidId('')
-      alert('Запись отменена')
+      showToast('Запись отменена', { type: 'success' })
     } catch (error) {
       console.error(error)
-      alert(
-        error instanceof Error ? error.message : 'Не удалось отменить запись'
+      showToast(
+        error instanceof Error ? error.message : 'Не удалось отменить запись',
+        { type: 'error' }
       )
     } finally {
       setActionLoading(false)
@@ -268,9 +273,7 @@ function ActivityPage() {
           <PageContainer>
             <div className="section-header">
               <h1 className="section-title">{activity.title}</h1>
-              <p className="section-subtitle">
-                Подробная информация о занятии
-              </p>
+              <p className="section-subtitle">Подробная информация о занятии</p>
             </div>
 
             <div className="feature-card">
@@ -329,7 +332,9 @@ function ActivityPage() {
                   <select
                     value={selectedKidId}
                     onChange={(e) => setSelectedKidId(e.target.value)}
-                    disabled={!!currentEnrollment || kids.length === 0 || actionLoading}
+                    disabled={
+                      !!currentEnrollment || kids.length === 0 || actionLoading
+                    }
                   >
                     <option value="">Выберите ребёнка</option>
 

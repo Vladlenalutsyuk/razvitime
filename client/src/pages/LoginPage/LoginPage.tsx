@@ -1,38 +1,62 @@
-import { useState } from 'react'
+import { useState, type FormEvent } from 'react'
+import { useNavigate } from 'react-router-dom'
 import Header from '../../components/layout/Header/Header'
 import PageContainer from '../../components/layout/PageContainer/PageContainer'
 import { login } from '../../api/authApi'
+import { useToast } from '../../components/ui/ToastProvider/ToastProvider'
 
 function LoginPage() {
+  const navigate = useNavigate()
+  const { showToast } = useToast()
+
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [role, setRole] = useState<'parent' | 'center_admin'>('parent')
   const [error, setError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     setError('')
 
-console.log('LOGIN SUBMIT:', { email, password, role })
+    if (!email.trim() || !password.trim()) {
+      setError('Введите email и пароль')
+      showToast('Введите email и пароль', { type: 'error' })
+      return
+    }
 
     try {
-      const data = await login(email, password, role)
+      setSubmitting(true)
 
-      console.log('USER:', data)
+      const data = await login(email.trim(), password, role)
 
       localStorage.setItem('razvitime_auth', JSON.stringify(data))
 
+      showToast('Вход выполнен', { type: 'success' })
+
       if (data.user.role === 'parent') {
-        window.location.href = '/parent'
-      } else {
-        window.location.href = '/center'
+        navigate('/parent', { replace: true })
+        return
       }
+
+      if (data.user.role === 'center_admin') {
+        navigate('/center', { replace: true })
+        return
+      }
+
+      setError('Неизвестная роль пользователя')
+      localStorage.removeItem('razvitime_auth')
+      showToast('Неизвестная роль пользователя', { type: 'error' })
     } catch (err) {
       if (err instanceof Error) {
         setError(err.message)
+        showToast(err.message, { type: 'error' })
       } else {
         setError('Неверные данные для входа')
+        showToast('Неверные данные для входа', { type: 'error' })
       }
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -51,6 +75,7 @@ console.log('LOGIN SUBMIT:', { email, password, role })
                 placeholder="Email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                disabled={submitting}
               />
 
               <input
@@ -58,6 +83,7 @@ console.log('LOGIN SUBMIT:', { email, password, role })
                 placeholder="Пароль"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                disabled={submitting}
               />
 
               <div>
@@ -67,6 +93,7 @@ console.log('LOGIN SUBMIT:', { email, password, role })
                     name="role"
                     checked={role === 'parent'}
                     onChange={() => setRole('parent')}
+                    disabled={submitting}
                   />
                   Родитель
                 </label>
@@ -77,13 +104,18 @@ console.log('LOGIN SUBMIT:', { email, password, role })
                     name="role"
                     checked={role === 'center_admin'}
                     onChange={() => setRole('center_admin')}
+                    disabled={submitting}
                   />
                   Детский центр
                 </label>
               </div>
 
-              <button type="submit" className="btn btn-primary">
-                Войти
+              <button
+                type="submit"
+                className="btn btn-primary"
+                disabled={submitting}
+              >
+                {submitting ? 'Входим...' : 'Войти'}
               </button>
 
               {error && <p style={{ color: 'red' }}>{error}</p>}

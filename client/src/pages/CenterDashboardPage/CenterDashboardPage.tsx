@@ -14,6 +14,7 @@ import {
 import {
   getCenterActivities,
   createCenterActivity,
+  updateCenterActivity,
   deleteCenterActivity,
   type CenterActivity,
 } from '../../api/centerActivitiesApi'
@@ -23,6 +24,7 @@ import {
   updateCenterEnrollmentStatus,
   type CenterEnrollment,
 } from '../../api/centerEnrollmentsApi'
+import { useToast } from '../../components/ui/ToastProvider/ToastProvider'
 
 type Section =
   | 'dashboard'
@@ -31,6 +33,26 @@ type Section =
   | 'enrollments'
   | 'help'
 
+type EditableSession = {
+  weekday: string
+  start_time: string
+  end_time: string
+}
+
+type EditActivityForm = {
+  title: string
+  category: string
+  age_min: string
+  age_max: string
+  short_description: string
+  description: string
+  price: string
+  payment_type: 'monthly' | 'per_lesson' | 'free'
+  capacity: string
+  is_active: boolean
+  sessions: EditableSession[]
+}
+
 const enrollmentStatusMap: Record<CenterEnrollment['status'], string> = {
   pending: 'Ожидание',
   approved: 'Подтверждено',
@@ -38,9 +60,135 @@ const enrollmentStatusMap: Record<CenterEnrollment['status'], string> = {
   cancelled: 'Отменено',
 }
 
+const weekdayOptions = [
+  { value: '1', label: 'Понедельник' },
+  { value: '2', label: 'Вторник' },
+  { value: '3', label: 'Среда' },
+  { value: '4', label: 'Четверг' },
+  { value: '5', label: 'Пятница' },
+  { value: '6', label: 'Суббота' },
+  { value: '7', label: 'Воскресенье' },
+]
+
+const weekdayMap: Record<number, string> = {
+  1: 'Понедельник',
+  2: 'Вторник',
+  3: 'Среда',
+  4: 'Четверг',
+  5: 'Пятница',
+  6: 'Суббота',
+  7: 'Воскресенье',
+}
+
+function createEmptySession(): EditableSession {
+  return {
+    weekday: '1',
+    start_time: '',
+    end_time: '',
+  }
+}
+
+function buildEditForm(activity: CenterActivity): EditActivityForm {
+  return {
+    title: activity.title,
+    category: activity.category,
+    age_min: String(activity.age_min),
+    age_max: String(activity.age_max),
+    short_description: activity.short_description || '',
+    description: activity.description || '',
+    price: String(activity.price ?? 0),
+    payment_type: activity.payment_type,
+    capacity: activity.capacity != null ? String(activity.capacity) : '',
+    is_active: activity.is_active,
+    sessions:
+      activity.sessions && activity.sessions.length > 0
+        ? activity.sessions.map((session) => ({
+            weekday: String(session.weekday),
+            start_time: session.start_time,
+            end_time: session.end_time,
+          }))
+        : [createEmptySession()],
+  }
+}
+
+function normalizeSessions(sessions: EditableSession[]) {
+  return sessions
+    .map((session) => ({
+      weekday: Number(session.weekday),
+      start_time: session.start_time,
+      end_time: session.end_time,
+    }))
+    .filter(
+      (session) =>
+        Number.isFinite(session.weekday) &&
+        session.weekday >= 1 &&
+        session.weekday <= 7 &&
+        session.start_time &&
+        session.end_time
+    )
+}
+
+function validateActivityForm(form: {
+  title: string
+  category: string
+  age_min: string
+  age_max: string
+  price: string
+  capacity: string
+  sessions: EditableSession[]
+}) {
+  if (
+    !form.title.trim() ||
+    !form.category.trim() ||
+    !form.age_min.trim() ||
+    !form.age_max.trim()
+  ) {
+    return 'Заполните обязательные поля кружка'
+  }
+
+  const ageMin = Number(form.age_min)
+  const ageMax = Number(form.age_max)
+  const price = form.price.trim() ? Number(form.price) : 0
+  const capacity = form.capacity.trim() ? Number(form.capacity) : null
+
+  if (!Number.isFinite(ageMin) || !Number.isFinite(ageMax)) {
+    return 'Возраст должен быть числом'
+  }
+
+  if (ageMin < 0 || ageMax < 0 || ageMin > ageMax) {
+    return 'Проверьте возрастной диапазон'
+  }
+
+  if (!Number.isFinite(price) || price < 0) {
+    return 'Цена указана некорректно'
+  }
+
+  if (capacity !== null && (!Number.isFinite(capacity) || capacity <= 0)) {
+    return 'Вместимость должна быть положительным числом'
+  }
+
+  const normalizedSessions = normalizeSessions(form.sessions)
+
+  if (normalizedSessions.length === 0) {
+    return 'Добавьте хотя бы одно занятие в расписание'
+  }
+
+  const hasInvalidTime = normalizedSessions.some(
+    (session) => session.start_time >= session.end_time
+  )
+
+  if (hasInvalidTime) {
+    return 'В расписании время начала должно быть раньше времени окончания'
+  }
+
+  return null
+}
+
 function CenterDashboardPage() {
   const auth = getAuth()
   const userId = auth?.user?.id
+  const isCenter = auth?.user?.role === 'center_admin'
+  const { showToast } = useToast()
 
   const [activeSection, setActiveSection] = useState<Section>('dashboard')
 
@@ -67,8 +215,18 @@ function CenterDashboardPage() {
     capacity: '',
   })
 
+  const [newActivitySessions, setNewActivitySessions] = useState<EditableSession[]>([
+    createEmptySession(),
+  ])
+
+  const [editingActivityId, setEditingActivityId] = useState<number | null>(null)
+  const [editActivityForm, setEditActivityForm] = useState<EditActivityForm | null>(null)
+  const [editActivitySaving, setEditActivitySaving] = useState(false)
+
   const [enrollments, setEnrollments] = useState<CenterEnrollment[]>([])
   const [enrollmentsLoading, setEnrollmentsLoading] = useState(false)
+  const [enrollmentActionLoadingId, setEnrollmentActionLoadingId] = useState<number | null>(null)
+
   const [statusFilter, setStatusFilter] = useState('')
   const [activityFilter, setActivityFilter] = useState('')
 
@@ -76,10 +234,12 @@ function CenterDashboardPage() {
     dashboard?.center?.name ||
     profile?.name ||
     auth?.user?.name ||
+    auth?.user?.center_name ||
     'Центр'
 
   useEffect(() => {
-    if (typeof userId !== 'number') {
+    if (typeof userId !== 'number' || !isCenter) {
+      setDashboard(null)
       return
     }
 
@@ -92,16 +252,18 @@ function CenterDashboardPage() {
         setDashboard(data)
       } catch (error) {
         console.error(error)
+        setDashboard(null)
       } finally {
         setDashboardLoading(false)
       }
     }
 
     loadDashboard()
-  }, [userId])
+  }, [userId, isCenter])
 
   useEffect(() => {
-    if (typeof userId !== 'number') {
+    if (typeof userId !== 'number' || !isCenter) {
+      setProfile(null)
       return
     }
 
@@ -114,16 +276,18 @@ function CenterDashboardPage() {
         setProfile(data)
       } catch (error) {
         console.error(error)
+        setProfile(null)
       } finally {
         setProfileLoading(false)
       }
     }
 
     loadProfile()
-  }, [userId])
+  }, [userId, isCenter])
 
   useEffect(() => {
-    if (typeof userId !== 'number') {
+    if (typeof userId !== 'number' || !isCenter) {
+      setActivities([])
       return
     }
 
@@ -143,10 +307,11 @@ function CenterDashboardPage() {
     }
 
     loadActivities()
-  }, [userId, activeSection])
+  }, [userId, isCenter])
 
   useEffect(() => {
-    if (typeof userId !== 'number') {
+    if (typeof userId !== 'number' || !isCenter) {
+      setEnrollments([])
       return
     }
 
@@ -170,7 +335,7 @@ function CenterDashboardPage() {
     }
 
     loadEnrollments()
-  }, [userId, activeSection, statusFilter, activityFilter])
+  }, [userId, isCenter, statusFilter, activityFilter])
 
   const activityOptions = useMemo(() => {
     return activities.map((activity) => ({
@@ -179,7 +344,9 @@ function CenterDashboardPage() {
     }))
   }, [activities])
 
-  function handleProfileChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
+  function handleProfileChange(
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) {
     const { name, value } = e.target
 
     setProfile((prev) => {
@@ -198,12 +365,14 @@ function CenterDashboardPage() {
     e.preventDefault()
 
     if (typeof userId !== 'number' || !profile) {
-      alert('Профиль центра не найден')
+      showToast('Профиль центра не найден', { type: 'error' })
       return
     }
 
     if (!profile.name.trim() || !profile.city.trim() || !profile.address.trim()) {
-      alert('Заполните обязательные поля: название, город и адрес')
+      showToast('Заполните обязательные поля: название, город и адрес', {
+        type: 'error',
+      })
       return
     }
 
@@ -212,30 +381,31 @@ function CenterDashboardPage() {
 
       const updated = await updateCenterProfile({
         userId,
-        name: profile.name,
-        short_description: profile.short_description,
-        full_description: profile.full_description,
-        city: profile.city,
-        address: profile.address,
-        landmark: profile.landmark,
-        phone: profile.phone,
-        email: profile.email,
-        website: profile.website,
-        telegram: profile.telegram,
-        whatsapp: profile.whatsapp,
-        vk: profile.vk,
-        logo_url: profile.logo_url,
-        photo_url: profile.photo_url,
+        name: profile.name.trim(),
+        short_description: profile.short_description?.trim() || null,
+        full_description: profile.full_description?.trim() || null,
+        city: profile.city.trim(),
+        address: profile.address.trim(),
+        landmark: profile.landmark?.trim() || null,
+        phone: profile.phone?.trim() || null,
+        email: profile.email?.trim() || null,
+        website: profile.website?.trim() || null,
+        telegram: profile.telegram?.trim() || null,
+        whatsapp: profile.whatsapp?.trim() || null,
+        vk: profile.vk?.trim() || null,
+        logo_url: profile.logo_url?.trim() || null,
+        photo_url: profile.photo_url?.trim() || null,
       })
 
       setProfile(updated)
-      alert('Профиль центра сохранён')
+      showToast('Профиль центра сохранён', { type: 'success' })
     } catch (error) {
       console.error(error)
-      alert(
+      showToast(
         error instanceof Error
           ? error.message
-          : 'Не удалось сохранить профиль центра'
+          : 'Не удалось сохранить профиль центра',
+        { type: 'error' }
       )
     } finally {
       setProfileSaving(false)
@@ -253,21 +423,48 @@ function CenterDashboardPage() {
     }))
   }
 
+  function handleNewSessionChange(
+    index: number,
+    field: keyof EditableSession,
+    value: string
+  ) {
+    setNewActivitySessions((prev) =>
+      prev.map((session, i) =>
+        i === index ? { ...session, [field]: value } : session
+      )
+    )
+  }
+
+  function handleAddNewSession() {
+    setNewActivitySessions((prev) => [...prev, createEmptySession()])
+  }
+
+  function handleRemoveNewSession(index: number) {
+    setNewActivitySessions((prev) => prev.filter((_, i) => i !== index))
+  }
+
   async function handleCreateActivity() {
     if (typeof userId !== 'number') {
-      alert('Пользователь центра не найден')
+      showToast('Пользователь центра не найден', { type: 'error' })
       return
     }
 
-    if (
-      !newActivity.title.trim() ||
-      !newActivity.category.trim() ||
-      !newActivity.age_min.trim() ||
-      !newActivity.age_max.trim()
-    ) {
-      alert('Заполните обязательные поля кружка')
+    const validationError = validateActivityForm({
+      ...newActivity,
+      sessions: newActivitySessions,
+    })
+
+    if (validationError) {
+      showToast(validationError, { type: 'error' })
       return
     }
+
+    const ageMin = Number(newActivity.age_min)
+    const ageMax = Number(newActivity.age_max)
+    const price = newActivity.price.trim() ? Number(newActivity.price) : 0
+    const capacity = newActivity.capacity.trim()
+      ? Number(newActivity.capacity)
+      : null
 
     try {
       setActivitySubmitting(true)
@@ -276,14 +473,14 @@ function CenterDashboardPage() {
         userId,
         title: newActivity.title.trim(),
         category: newActivity.category.trim(),
-        age_min: Number(newActivity.age_min),
-        age_max: Number(newActivity.age_max),
-        short_description: newActivity.short_description || null,
-        description: newActivity.description || null,
-        price: newActivity.price ? Number(newActivity.price) : 0,
+        age_min: ageMin,
+        age_max: ageMax,
+        short_description: newActivity.short_description.trim() || null,
+        description: newActivity.description.trim() || null,
+        price,
         payment_type: newActivity.payment_type,
-        capacity: newActivity.capacity ? Number(newActivity.capacity) : null,
-        sessions: [],
+        capacity,
+        sessions: normalizeSessions(newActivitySessions),
       })
 
       setActivities((prev) => [created, ...prev])
@@ -300,25 +497,207 @@ function CenterDashboardPage() {
         capacity: '',
       })
 
-      alert('Кружок создан')
+      setNewActivitySessions([createEmptySession()])
+
+      setDashboard((prev) => {
+        if (!prev) {
+          return prev
+        }
+
+        return {
+          ...prev,
+          stats: {
+            ...prev.stats,
+            activitiesCount: prev.stats.activitiesCount + 1,
+          },
+        }
+      })
+
+      showToast('Кружок создан', { type: 'success' })
     } catch (error) {
       console.error(error)
-      alert(
-        error instanceof Error ? error.message : 'Не удалось создать кружок'
+      showToast(
+        error instanceof Error ? error.message : 'Не удалось создать кружок',
+        { type: 'error' }
       )
     } finally {
       setActivitySubmitting(false)
     }
   }
 
+  function startEditingActivity(activity: CenterActivity) {
+    setEditingActivityId(activity.id)
+    setEditActivityForm(buildEditForm(activity))
+  }
+
+  function cancelEditingActivity() {
+    if (editActivitySaving) {
+      return
+    }
+
+    setEditingActivityId(null)
+    setEditActivityForm(null)
+  }
+
+  function handleEditActivityChange(
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) {
+    const { name, value, type } = e.target as HTMLInputElement
+
+    setEditActivityForm((prev) => {
+      if (!prev) {
+        return prev
+      }
+
+      if (type === 'checkbox') {
+        return {
+          ...prev,
+          [name]: (e.target as HTMLInputElement).checked,
+        }
+      }
+
+      return {
+        ...prev,
+        [name]: value,
+      }
+    })
+  }
+
+  function handleEditSessionChange(
+    index: number,
+    field: keyof EditableSession,
+    value: string
+  ) {
+    setEditActivityForm((prev) => {
+      if (!prev) {
+        return prev
+      }
+
+      return {
+        ...prev,
+        sessions: prev.sessions.map((session, i) =>
+          i === index ? { ...session, [field]: value } : session
+        ),
+      }
+    })
+  }
+
+  function handleAddEditSession() {
+    setEditActivityForm((prev) => {
+      if (!prev) {
+        return prev
+      }
+
+      return {
+        ...prev,
+        sessions: [...prev.sessions, createEmptySession()],
+      }
+    })
+  }
+
+  function handleRemoveEditSession(index: number) {
+    setEditActivityForm((prev) => {
+      if (!prev) {
+        return prev
+      }
+
+      return {
+        ...prev,
+        sessions: prev.sessions.filter((_, i) => i !== index),
+      }
+    })
+  }
+
+  async function handleSaveEditedActivity() {
+    if (!editActivityForm || editingActivityId == null) {
+      return
+    }
+
+    const validationError = validateActivityForm(editActivityForm)
+
+    if (validationError) {
+      showToast(validationError, { type: 'error' })
+      return
+    }
+
+    const ageMin = Number(editActivityForm.age_min)
+    const ageMax = Number(editActivityForm.age_max)
+    const price = editActivityForm.price.trim()
+      ? Number(editActivityForm.price)
+      : 0
+    const capacity = editActivityForm.capacity.trim()
+      ? Number(editActivityForm.capacity)
+      : null
+
+    try {
+      setEditActivitySaving(true)
+
+      const updated = await updateCenterActivity(editingActivityId, {
+        title: editActivityForm.title.trim(),
+        category: editActivityForm.category.trim(),
+        age_min: ageMin,
+        age_max: ageMax,
+        short_description: editActivityForm.short_description.trim() || null,
+        description: editActivityForm.description.trim() || null,
+        price,
+        payment_type: editActivityForm.payment_type,
+        capacity,
+        is_active: editActivityForm.is_active,
+        sessions: normalizeSessions(editActivityForm.sessions),
+      })
+
+      setActivities((prev) =>
+        prev.map((activity) =>
+          activity.id === editingActivityId ? updated : activity
+        )
+      )
+
+      setEditingActivityId(null)
+      setEditActivityForm(null)
+
+      showToast('Кружок и расписание обновлены', { type: 'success' })
+    } catch (error) {
+      console.error(error)
+      showToast(
+        error instanceof Error ? error.message : 'Не удалось обновить кружок',
+        { type: 'error' }
+      )
+    } finally {
+      setEditActivitySaving(false)
+    }
+  }
+
   async function handleDeleteActivity(activityId: number) {
     try {
       await deleteCenterActivity(activityId)
+
       setActivities((prev) => prev.filter((item) => item.id !== activityId))
+
+      if (editingActivityId === activityId) {
+        setEditingActivityId(null)
+        setEditActivityForm(null)
+      }
+
+      setDashboard((prev) => {
+        if (!prev) {
+          return prev
+        }
+
+        return {
+          ...prev,
+          stats: {
+            ...prev.stats,
+            activitiesCount: Math.max(0, prev.stats.activitiesCount - 1),
+          },
+        }
+      })
+
+      showToast('Кружок удалён', { type: 'success' })
     } catch (error) {
       console.error(error)
-      alert(
-        error instanceof Error ? error.message : 'Не удалось удалить кружок'
+      showToast(
+        error instanceof Error ? error.message : 'Не удалось удалить кружок',
+        { type: 'error' }
       )
     }
   }
@@ -328,6 +707,8 @@ function CenterDashboardPage() {
     status: CenterEnrollment['status']
   ) {
     try {
+      setEnrollmentActionLoadingId(enrollmentId)
+
       const updated = await updateCenterEnrollmentStatus(enrollmentId, {
         status,
       })
@@ -335,14 +716,39 @@ function CenterDashboardPage() {
       setEnrollments((prev) =>
         prev.map((item) => (item.id === enrollmentId ? updated : item))
       )
+
+      showToast('Статус заявки обновлён', { type: 'success' })
     } catch (error) {
       console.error(error)
-      alert(
+      showToast(
         error instanceof Error
           ? error.message
-          : 'Не удалось обновить статус заявки'
+          : 'Не удалось обновить статус заявки',
+        { type: 'error' }
       )
+    } finally {
+      setEnrollmentActionLoadingId(null)
     }
+  }
+
+  if (!auth || !isCenter || typeof userId !== 'number') {
+    return (
+      <>
+        <Header />
+        <main className="page-parent">
+          <PageContainer>
+            <section className="section">
+              <div className="section-header">
+                <h1 className="section-title">Кабинет центра недоступен</h1>
+                <p className="section-subtitle">
+                  Войдите под аккаунтом центра, чтобы пользоваться этим разделом.
+                </p>
+              </div>
+            </section>
+          </PageContainer>
+        </main>
+      </>
+    )
   }
 
   return (
@@ -596,7 +1002,7 @@ function CenterDashboardPage() {
                   <div className="section-header">
                     <h1 className="section-title">Мои кружки</h1>
                     <p className="section-subtitle">
-                      Добавляйте и удаляйте кружки центра
+                      Добавляйте, редактируйте и удаляйте кружки центра
                     </p>
                   </div>
 
@@ -695,10 +1101,79 @@ function CenterDashboardPage() {
                       />
                     </div>
 
+                    <div style={{ marginTop: '16px' }}>
+                      <h3 style={{ marginBottom: '12px' }}>Расписание занятий</h3>
+
+                      {newActivitySessions.map((session, index) => (
+                        <div
+                          key={index}
+                          className="feature-card"
+                          style={{ marginBottom: '12px' }}
+                        >
+                          <div className="auth-field">
+                            <label>День недели</label>
+                            <select
+                              value={session.weekday}
+                              onChange={(e) =>
+                                handleNewSessionChange(index, 'weekday', e.target.value)
+                              }
+                            >
+                              {weekdayOptions.map((day) => (
+                                <option key={day.value} value={day.value}>
+                                  {day.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div className="auth-field">
+                            <label>Время начала</label>
+                            <input
+                              type="time"
+                              value={session.start_time}
+                              onChange={(e) =>
+                                handleNewSessionChange(index, 'start_time', e.target.value)
+                              }
+                            />
+                          </div>
+
+                          <div className="auth-field">
+                            <label>Время окончания</label>
+                            <input
+                              type="time"
+                              value={session.end_time}
+                              onChange={(e) =>
+                                handleNewSessionChange(index, 'end_time', e.target.value)
+                              }
+                            />
+                          </div>
+
+                          {newActivitySessions.length > 1 && (
+                            <button
+                              type="button"
+                              className="btn btn-outline btn-sm"
+                              onClick={() => handleRemoveNewSession(index)}
+                            >
+                              Удалить слот
+                            </button>
+                          )}
+                        </div>
+                      ))}
+
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        onClick={handleAddNewSession}
+                      >
+                        + Добавить ещё день
+                      </button>
+                    </div>
+
                     <button
                       className="btn btn-primary btn-sm"
                       onClick={handleCreateActivity}
                       disabled={activitySubmitting}
+                      style={{ marginTop: '16px' }}
                     >
                       {activitySubmitting ? 'Создаём...' : 'Создать кружок'}
                     </button>
@@ -722,12 +1197,43 @@ function CenterDashboardPage() {
                       <p><b>Цена:</b> {activity.price} ₽</p>
                       <p><b>Статус:</b> {activity.is_active ? 'Активен' : 'Скрыт'}</p>
 
-                      <button
-                        className="btn btn-outline btn-sm"
-                        onClick={() => handleDeleteActivity(activity.id)}
+                      {activity.sessions && activity.sessions.length > 0 && (
+                        <div style={{ marginTop: '12px' }}>
+                          <b>Расписание:</b>
+                          <div style={{ marginTop: '8px' }}>
+                            {activity.sessions.map((session) => (
+                              <p key={session.id}>
+                                {weekdayMap[session.weekday] ||
+                                  `День ${session.weekday}`}{' '}
+                                — {session.start_time}–{session.end_time}
+                              </p>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      <div
+                        style={{
+                          display: 'flex',
+                          gap: '8px',
+                          flexWrap: 'wrap',
+                          marginTop: '12px',
+                        }}
                       >
-                        Удалить
-                      </button>
+                        <button
+                          className="btn btn-primary btn-sm"
+                          onClick={() => startEditingActivity(activity)}
+                        >
+                          Редактировать
+                        </button>
+
+                        <button
+                          className="btn btn-outline btn-sm"
+                          onClick={() => handleDeleteActivity(activity.id)}
+                        >
+                          Удалить
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -785,42 +1291,48 @@ function CenterDashboardPage() {
                     <p>Заявок пока нет</p>
                   )}
 
-                  {enrollments.map((item) => (
-                    <div
-                      key={item.id}
-                      className="feature-card"
-                      style={{ marginBottom: '12px' }}
-                    >
-                      <h3>{item.activity_title}</h3>
-                      <p><b>Ребёнок:</b> {item.child_name}</p>
-                      <p><b>Дата рождения:</b> {item.birthdate}</p>
-                      <p><b>Родитель:</b> {item.parent_name}</p>
-                      <p><b>Телефон:</b> {item.parent_phone || '—'}</p>
-                      <p><b>Telegram:</b> {item.parent_telegram || '—'}</p>
-                      <p><b>Email:</b> {item.parent_email || '—'}</p>
-                      <p><b>Статус:</b> {enrollmentStatusMap[item.status]}</p>
+                  {enrollments.map((item) => {
+                    const isActionLoading = enrollmentActionLoadingId === item.id
 
-                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                        <button
-                          className="btn btn-primary btn-sm"
-                          onClick={() =>
-                            handleUpdateEnrollmentStatus(item.id, 'approved')
-                          }
-                        >
-                          Подтвердить
-                        </button>
+                    return (
+                      <div
+                        key={item.id}
+                        className="feature-card"
+                        style={{ marginBottom: '12px' }}
+                      >
+                        <h3>{item.activity_title}</h3>
+                        <p><b>Ребёнок:</b> {item.child_name}</p>
+                        <p><b>Дата рождения:</b> {item.birthdate}</p>
+                        <p><b>Родитель:</b> {item.parent_name}</p>
+                        <p><b>Телефон:</b> {item.parent_phone || '—'}</p>
+                        <p><b>Telegram:</b> {item.parent_telegram || '—'}</p>
+                        <p><b>Email:</b> {item.parent_email || '—'}</p>
+                        <p><b>Статус:</b> {enrollmentStatusMap[item.status]}</p>
 
-                        <button
-                          className="btn btn-outline btn-sm"
-                          onClick={() =>
-                            handleUpdateEnrollmentStatus(item.id, 'declined')
-                          }
-                        >
-                          Отклонить
-                        </button>
+                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                          <button
+                            className="btn btn-primary btn-sm"
+                            onClick={() =>
+                              handleUpdateEnrollmentStatus(item.id, 'approved')
+                            }
+                            disabled={isActionLoading || item.status === 'approved'}
+                          >
+                            {isActionLoading ? 'Сохраняем...' : 'Подтвердить'}
+                          </button>
+
+                          <button
+                            className="btn btn-outline btn-sm"
+                            onClick={() =>
+                              handleUpdateEnrollmentStatus(item.id, 'declined')
+                            }
+                            disabled={isActionLoading || item.status === 'declined'}
+                          >
+                            {isActionLoading ? 'Сохраняем...' : 'Отклонить'}
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               )}
 
@@ -836,7 +1348,8 @@ function CenterDashboardPage() {
                   <div className="feature-card">
                     <ol style={{ paddingLeft: '18px', margin: 0 }}>
                       <li>Заполните информацию о центре.</li>
-                      <li>Добавьте кружки во вкладке «Мои кружки».</li>
+                      <li>Добавьте кружки и укажите расписание.</li>
+                      <li>Редактируйте кружки через кнопку «Редактировать».</li>
                       <li>Следите за заявками во вкладке «Заявки».</li>
                       <li>Подтверждайте или отклоняйте записи родителей.</li>
                     </ol>
@@ -847,6 +1360,225 @@ function CenterDashboardPage() {
           </div>
         </PageContainer>
       </main>
+
+      {editingActivityId !== null && editActivityForm && (
+        <div className="modal-overlay" onClick={cancelEditingActivity}>
+          <div
+            className="modal-content"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-header">
+              <div>
+                <h2 className="modal-title">Редактирование кружка</h2>
+                <p className="modal-subtitle">
+                  Измените данные кружка и его расписание
+                </p>
+              </div>
+
+              <button
+                type="button"
+                className="btn btn-outline btn-sm"
+                onClick={cancelEditingActivity}
+                disabled={editActivitySaving}
+              >
+                Закрыть
+              </button>
+            </div>
+
+            <div className="auth-field">
+              <label>Название</label>
+              <input
+                type="text"
+                name="title"
+                value={editActivityForm.title}
+                onChange={handleEditActivityChange}
+              />
+            </div>
+
+            <div className="auth-field">
+              <label>Категория</label>
+              <input
+                type="text"
+                name="category"
+                value={editActivityForm.category}
+                onChange={handleEditActivityChange}
+              />
+            </div>
+
+            <div className="auth-field">
+              <label>Возраст от</label>
+              <input
+                type="number"
+                name="age_min"
+                value={editActivityForm.age_min}
+                onChange={handleEditActivityChange}
+              />
+            </div>
+
+            <div className="auth-field">
+              <label>Возраст до</label>
+              <input
+                type="number"
+                name="age_max"
+                value={editActivityForm.age_max}
+                onChange={handleEditActivityChange}
+              />
+            </div>
+
+            <div className="auth-field">
+              <label>Краткое описание</label>
+              <input
+                type="text"
+                name="short_description"
+                value={editActivityForm.short_description}
+                onChange={handleEditActivityChange}
+              />
+            </div>
+
+            <div className="auth-field">
+              <label>Описание</label>
+              <textarea
+                name="description"
+                value={editActivityForm.description}
+                onChange={handleEditActivityChange}
+              />
+            </div>
+
+            <div className="auth-field">
+              <label>Цена</label>
+              <input
+                type="number"
+                name="price"
+                value={editActivityForm.price}
+                onChange={handleEditActivityChange}
+              />
+            </div>
+
+            <div className="auth-field">
+              <label>Тип оплаты</label>
+              <select
+                name="payment_type"
+                value={editActivityForm.payment_type}
+                onChange={handleEditActivityChange}
+              >
+                <option value="monthly">Ежемесячно</option>
+                <option value="per_lesson">За занятие</option>
+                <option value="free">Бесплатно</option>
+              </select>
+            </div>
+
+            <div className="auth-field">
+              <label>Вместимость</label>
+              <input
+                type="number"
+                name="capacity"
+                value={editActivityForm.capacity}
+                onChange={handleEditActivityChange}
+              />
+            </div>
+
+            <div className="auth-field">
+              <label style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <input
+                  type="checkbox"
+                  name="is_active"
+                  checked={editActivityForm.is_active}
+                  onChange={handleEditActivityChange}
+                />
+                Кружок активен
+              </label>
+            </div>
+
+            <div style={{ marginTop: '16px' }}>
+              <h3 style={{ marginBottom: '12px' }}>Расписание занятий</h3>
+
+              {editActivityForm.sessions.map((session, index) => (
+                <div
+                  key={index}
+                  className="feature-card"
+                  style={{ marginBottom: '12px' }}
+                >
+                  <div className="auth-field">
+                    <label>День недели</label>
+                    <select
+                      value={session.weekday}
+                      onChange={(e) =>
+                        handleEditSessionChange(index, 'weekday', e.target.value)
+                      }
+                    >
+                      {weekdayOptions.map((day) => (
+                        <option key={day.value} value={day.value}>
+                          {day.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="auth-field">
+                    <label>Время начала</label>
+                    <input
+                      type="time"
+                      value={session.start_time}
+                      onChange={(e) =>
+                        handleEditSessionChange(index, 'start_time', e.target.value)
+                      }
+                    />
+                  </div>
+
+                  <div className="auth-field">
+                    <label>Время окончания</label>
+                    <input
+                      type="time"
+                      value={session.end_time}
+                      onChange={(e) =>
+                        handleEditSessionChange(index, 'end_time', e.target.value)
+                      }
+                    />
+                  </div>
+
+                  {editActivityForm.sessions.length > 1 && (
+                    <button
+                      type="button"
+                      className="btn btn-outline btn-sm"
+                      onClick={() => handleRemoveEditSession(index)}
+                    >
+                      Удалить слот
+                    </button>
+                  )}
+                </div>
+              ))}
+
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={handleAddEditSession}
+              >
+                + Добавить ещё день
+              </button>
+            </div>
+
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                onClick={handleSaveEditedActivity}
+                disabled={editActivitySaving}
+              >
+                {editActivitySaving ? 'Сохраняем...' : 'Сохранить'}
+              </button>
+
+              <button
+                type="button"
+                className="btn btn-outline btn-sm"
+                onClick={cancelEditingActivity}
+                disabled={editActivitySaving}
+              >
+                Отмена
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
 }

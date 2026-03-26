@@ -3,93 +3,135 @@ const router = express.Router()
 const db = require('../db')
 
 router.get('/', async (req, res) => {
-  const userId = Number(req.query.userId)
-
-  if (!userId) {
-    return res.status(400).json({ error: 'Не передан userId' })
-  }
-
   try {
-    const [centerRows] = await db.query(
-      `SELECT id
-       FROM centers
-       WHERE user_id = ?
-       LIMIT 1`,
+    const { userId } = req.query
+
+    if (!userId) {
+      return res.status(400).json({ error: 'Не передан userId' })
+    }
+
+    const [centers] = await db.query(
+      'SELECT id FROM centers WHERE user_id = ? LIMIT 1',
       [userId]
     )
 
-    if (!centerRows.length) {
+    if (centers.length === 0) {
       return res.status(404).json({ error: 'Центр не найден' })
     }
 
-    const centerId = centerRows[0].id
+    const centerId = centers[0].id
 
-    const [rows] = await db.query(
-      `SELECT
-         id,
-         center_id,
-         title,
-         category,
-         age_min,
-         age_max,
-         short_description,
-         description,
-         price,
-         payment_type,
-         capacity,
-         is_active,
-         created_at
-       FROM activities
-       WHERE center_id = ?
-       ORDER BY created_at DESC`,
+    const [activities] = await db.query(
+      `
+      SELECT
+        a.id,
+        a.center_id,
+        a.title,
+        a.category,
+        a.age_min,
+        a.age_max,
+        a.short_description,
+        a.description,
+        a.price,
+        a.payment_type,
+        a.capacity,
+        a.is_active
+      FROM activities a
+      WHERE a.center_id = ?
+      ORDER BY a.id DESC
+      `,
       [centerId]
     )
 
-    res.json(rows)
+    const activityIds = activities.map((item) => item.id)
+
+    let sessions = []
+
+    if (activityIds.length > 0) {
+      const [sessionRows] = await db.query(
+        `
+        SELECT
+          id,
+          activity_id,
+          weekday,
+          start_time,
+          end_time
+        FROM activity_sessions
+        WHERE activity_id IN (?)
+        ORDER BY weekday, start_time
+        `,
+        [activityIds]
+      )
+
+      sessions = sessionRows
+    }
+
+    const activitiesWithSessions = activities.map((activity) => ({
+      ...activity,
+      sessions: sessions.filter(
+        (session) => session.activity_id === activity.id
+      ),
+    }))
+
+    res.json(activitiesWithSessions)
   } catch (error) {
-    console.error('center activities get error', error)
+    console.error(error)
     res.status(500).json({ error: 'Ошибка загрузки кружков центра' })
   }
 })
 
 router.post('/', async (req, res) => {
-  const {
-    userId,
-    title,
-    category,
-    age_min,
-    age_max,
-    short_description,
-    description,
-    price,
-    payment_type,
-    capacity,
-    sessions,
-  } = req.body
-
-  if (!userId || !title || !category || age_min == null || age_max == null) {
-    return res.status(400).json({ error: 'Не хватает обязательных полей кружка' })
-  }
+  const connection = await db.getConnection()
 
   try {
-    const [centerRows] = await db.query(
-      `SELECT id
-       FROM centers
-       WHERE user_id = ?
-       LIMIT 1`,
+    const {
+      userId,
+      title,
+      category,
+      age_min,
+      age_max,
+      short_description,
+      description,
+      price,
+      payment_type,
+      capacity,
+      sessions,
+    } = req.body
+
+    if (!userId || !title || !category || age_min == null || age_max == null) {
+      return res.status(400).json({ error: 'Не заполнены обязательные поля' })
+    }
+
+    const [centers] = await connection.query(
+      'SELECT id FROM centers WHERE user_id = ? LIMIT 1',
       [userId]
     )
 
-    if (!centerRows.length) {
+    if (centers.length === 0) {
       return res.status(404).json({ error: 'Центр не найден' })
     }
 
-    const centerId = centerRows[0].id
+    const centerId = centers[0].id
 
-    const [result] = await db.query(
-      `INSERT INTO activities
-       (center_id, title, category, age_min, age_max, short_description, description, price, payment_type, capacity, is_active)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+    await connection.beginTransaction()
+
+    const [result] = await connection.query(
+      `
+      INSERT INTO activities (
+        center_id,
+        title,
+        category,
+        age_min,
+        age_max,
+        short_description,
+        description,
+        price,
+        payment_type,
+        capacity,
+        is_active
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+      `,
       [
         centerId,
         title,
@@ -98,22 +140,38 @@ router.post('/', async (req, res) => {
         age_max,
         short_description || null,
         description || null,
-        price || 0,
+        price ?? 0,
         payment_type || 'monthly',
-        capacity || null,
+        capacity ?? null,
       ]
     )
 
     const activityId = result.insertId
 
     if (Array.isArray(sessions) && sessions.length > 0) {
-      for (const session of sessions) {
-        await db.query(
-          `INSERT INTO activity_sessions (activity_id, weekday, start_time, end_time)
-           VALUES (?, ?, ?, ?)`,
+      const validSessions = sessions.filter(
+        (item) =>
+          item &&
+          Number(item.weekday) >= 1 &&
+          Number(item.weekday) <= 7 &&
+          item.start_time &&
+          item.end_time
+      )
+
+      for (const session of validSessions) {
+        await connection.query(
+          `
+          INSERT INTO activity_sessions (
+            activity_id,
+            weekday,
+            start_time,
+            end_time
+          )
+          VALUES (?, ?, ?, ?)
+          `,
           [
             activityId,
-            session.weekday,
+            Number(session.weekday),
             session.start_time,
             session.end_time,
           ]
@@ -121,67 +179,99 @@ router.post('/', async (req, res) => {
       }
     }
 
-    const [rows] = await db.query(
-      `SELECT
-         id,
-         center_id,
-         title,
-         category,
-         age_min,
-         age_max,
-         short_description,
-         description,
-         price,
-         payment_type,
-         capacity,
-         is_active
-       FROM activities
-       WHERE id = ?`,
+    await connection.commit()
+
+    const [activities] = await connection.query(
+      `
+      SELECT
+        a.id,
+        a.center_id,
+        a.title,
+        a.category,
+        a.age_min,
+        a.age_max,
+        a.short_description,
+        a.description,
+        a.price,
+        a.payment_type,
+        a.capacity,
+        a.is_active
+      FROM activities a
+      WHERE a.id = ?
+      LIMIT 1
+      `,
       [activityId]
     )
 
-    res.status(201).json(rows[0])
+    const [sessionRows] = await connection.query(
+      `
+      SELECT
+        id,
+        activity_id,
+        weekday,
+        start_time,
+        end_time
+      FROM activity_sessions
+      WHERE activity_id = ?
+      ORDER BY weekday, start_time
+      `,
+      [activityId]
+    )
+
+    res.status(201).json({
+      ...activities[0],
+      sessions: sessionRows,
+    })
   } catch (error) {
-    console.error('center activities create error', error)
-    res.status(500).json({ error: 'Ошибка создания кружка' })
+    await connection.rollback()
+    console.error(error)
+    res.status(500).json({ error: 'Не удалось создать кружок' })
+  } finally {
+    connection.release()
   }
 })
 
 router.put('/:id', async (req, res) => {
-  const activityId = Number(req.params.id)
-  const {
-    title,
-    category,
-    age_min,
-    age_max,
-    short_description,
-    description,
-    price,
-    payment_type,
-    capacity,
-    is_active,
-    sessions,
-  } = req.body
-
-  if (!activityId) {
-    return res.status(400).json({ error: 'Некорректный id кружка' })
-  }
+  const connection = await db.getConnection()
 
   try {
-    await db.query(
-      `UPDATE activities
-       SET
-         title = ?,
-         category = ?,
-         age_min = ?,
-         age_max = ?,
-         short_description = ?,
-         description = ?,
-         price = ?,
-         payment_type = ?,
-         capacity = ?,
-         is_active = ?
-       WHERE id = ?`,
+    const { id } = req.params
+    const {
+      title,
+      category,
+      age_min,
+      age_max,
+      short_description,
+      description,
+      price,
+      payment_type,
+      capacity,
+      is_active,
+      sessions,
+    } = req.body
+
+    if (!title || !category || age_min == null || age_max == null) {
+      return res.status(400).json({ error: 'Не заполнены обязательные поля' })
+    }
+
+    await connection.beginTransaction()
+
+    await connection.query(
+      `
+      UPDATE activities
+      SET
+        title = ?,
+        category = ?,
+        age_min = ?,
+        age_max = ?,
+        short_description = ?,
+        description = ?,
+        price = ?,
+        payment_type = ?,
+        capacity = ?,
+        is_active = ?
+      WHERE id = ?
+      `,
       [
         title,
         category,
@@ -189,28 +279,43 @@ router.put('/:id', async (req, res) => {
         age_max,
         short_description || null,
         description || null,
-        price || 0,
+        price ?? 0,
         payment_type || 'monthly',
-        capacity || null,
+        capacity ?? null,
         is_active ? 1 : 0,
-        activityId,
+        id,
       ]
     )
 
-    if (Array.isArray(sessions)) {
-      await db.query(
-        `DELETE FROM activity_sessions
-         WHERE activity_id = ?`,
-        [activityId]
+    await connection.query(
+      'DELETE FROM activity_sessions WHERE activity_id = ?',
+      [id]
+    )
+
+    if (Array.isArray(sessions) && sessions.length > 0) {
+      const validSessions = sessions.filter(
+        (item) =>
+          item &&
+          Number(item.weekday) >= 1 &&
+          Number(item.weekday) <= 7 &&
+          item.start_time &&
+          item.end_time
       )
 
-      for (const session of sessions) {
-        await db.query(
-          `INSERT INTO activity_sessions (activity_id, weekday, start_time, end_time)
-           VALUES (?, ?, ?, ?)`,
+      for (const session of validSessions) {
+        await connection.query(
+          `
+          INSERT INTO activity_sessions (
+            activity_id,
+            weekday,
+            start_time,
+            end_time
+          )
+          VALUES (?, ?, ?, ?)
+          `,
           [
-            activityId,
-            session.weekday,
+            id,
+            Number(session.weekday),
             session.start_time,
             session.end_time,
           ]
@@ -218,54 +323,73 @@ router.put('/:id', async (req, res) => {
       }
     }
 
-    const [rows] = await db.query(
-      `SELECT
-         id,
-         center_id,
-         title,
-         category,
-         age_min,
-         age_max,
-         short_description,
-         description,
-         price,
-         payment_type,
-         capacity,
-         is_active
-       FROM activities
-       WHERE id = ?`,
-      [activityId]
+    await connection.commit()
+
+    const [activities] = await connection.query(
+      `
+      SELECT
+        a.id,
+        a.center_id,
+        a.title,
+        a.category,
+        a.age_min,
+        a.age_max,
+        a.short_description,
+        a.description,
+        a.price,
+        a.payment_type,
+        a.capacity,
+        a.is_active
+      FROM activities a
+      WHERE a.id = ?
+      LIMIT 1
+      `,
+      [id]
     )
 
-    if (!rows.length) {
+    if (activities.length === 0) {
       return res.status(404).json({ error: 'Кружок не найден' })
     }
 
-    res.json(rows[0])
+    const [sessionRows] = await connection.query(
+      `
+      SELECT
+        id,
+        activity_id,
+        weekday,
+        start_time,
+        end_time
+      FROM activity_sessions
+      WHERE activity_id = ?
+      ORDER BY weekday, start_time
+      `,
+      [id]
+    )
+
+    res.json({
+      ...activities[0],
+      sessions: sessionRows,
+    })
   } catch (error) {
-    console.error('center activities update error', error)
-    res.status(500).json({ error: 'Ошибка обновления кружка' })
+    await connection.rollback()
+    console.error(error)
+    res.status(500).json({ error: 'Не удалось обновить кружок' })
+  } finally {
+    connection.release()
   }
 })
 
 router.delete('/:id', async (req, res) => {
-  const activityId = Number(req.params.id)
-
-  if (!activityId) {
-    return res.status(400).json({ error: 'Некорректный id кружка' })
-  }
-
   try {
-    await db.query(
-      `DELETE FROM activities
-       WHERE id = ?`,
-      [activityId]
-    )
+    const { id } = req.params
+
+    await db.query('DELETE FROM activity_sessions WHERE activity_id = ?', [id])
+    await db.query('DELETE FROM activities WHERE id = ?', [id])
 
     res.json({ success: true })
   } catch (error) {
-    console.error('center activities delete error', error)
-    res.status(500).json({ error: 'Ошибка удаления кружка' })
+    console.error(error)
+    res.status(500).json({ error: 'Не удалось удалить кружок' })
   }
 })
 

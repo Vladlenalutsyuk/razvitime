@@ -3,37 +3,48 @@ import HomePage from '../../pages/HomePage/HomePage'
 import LoginPage from '../../pages/LoginPage/LoginPage'
 import ParentDashboardPage from '../../pages/ParentDashboardPage/ParentDashboardPage'
 import CenterDashboardPage from '../../pages/CenterDashboardPage/CenterDashboardPage'
-import ProtectedRoute from '../../components/ProtectedRoute/ProtectedRoute'
 import ActivityPage from '../../pages/ActivityPage/ActivityPage'
+import ProtectedRoute from '../../components/ProtectedRoute/ProtectedRoute'
+import ToastProvider from '../../components/ui/ToastProvider/ToastProvider'
 
 function AppRouter() {
-    return (
-        <BrowserRouter>
-            <Routes>
-                <Route path="/" element={<HomePage />} />
-                <Route path="/login" element={<LoginPage />} />
-                <Route
-                    path="/parent"
-                    element={
-                        <ProtectedRoute allowedRole="parent">
-                            <ParentDashboardPage />
-                        </ProtectedRoute>
-                    }
-                />
+  return (
+    <BrowserRouter>
+      <ToastProvider>
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/login" element={<LoginPage />} />
 
-                <Route
-                    path="/center"
-                    element={
-                        <ProtectedRoute allowedRole="center_admin">
-                            <CenterDashboardPage />
-                        </ProtectedRoute>
-                    }
-                />
+          <Route
+            path="/parent"
+            element={
+              <ProtectedRoute allowedRole="parent">
+                <ParentDashboardPage />
+              </ProtectedRoute>
+            }
+          />
 
-                <Route path="/activity/:id" element={<ActivityPage />} />
-            </Routes>
-        </BrowserRouter>
-    )
+          <Route
+            path="/center"
+            element={
+              <ProtectedRoute allowedRole="center_admin">
+                <CenterDashboardPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/activity/:id"
+            element={
+              <ProtectedRoute>
+                <ActivityPage />
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
+      </ToastProvider>
+    </BrowserRouter>
+  )
 }
 
 export default AppRouter

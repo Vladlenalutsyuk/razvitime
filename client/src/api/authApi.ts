@@ -1,10 +1,11 @@
 import { API_BASE } from './config'
+import type { AuthData, UserRole } from '../utils/auth'
 
 export async function login(
   email: string,
   password: string,
-  role: 'parent' | 'center_admin'
-) {
+  role: UserRole
+): Promise<AuthData> {
   const response = await fetch(`${API_BASE}/api/auth/login`, {
     method: 'POST',
     headers: {
@@ -23,5 +24,5 @@ export async function login(
     throw new Error(data.error || 'Ошибка авторизации')
   }
 
-  return data
+  return data as AuthData
 }

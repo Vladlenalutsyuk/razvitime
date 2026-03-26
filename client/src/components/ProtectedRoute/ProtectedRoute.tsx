@@ -1,11 +1,10 @@
-//D:\Data USER\Desktop\razvitime\client\src\components\ProtectedRoute\ProtectedRoute.tsx
 import type { ReactNode } from 'react'
 import { Navigate } from 'react-router-dom'
 import { getAuth, type UserRole } from '../../utils/auth'
 
 type ProtectedRouteProps = {
   children: ReactNode
-  allowedRole: UserRole
+  allowedRole?: UserRole
 }
 
 function ProtectedRoute({ children, allowedRole }: ProtectedRouteProps) {
@@ -15,7 +14,7 @@ function ProtectedRoute({ children, allowedRole }: ProtectedRouteProps) {
     return <Navigate to="/login" replace />
   }
 
-  if (auth.user.role !== allowedRole) {
+  if (allowedRole && auth.user.role !== allowedRole) {
     return <Navigate to="/login" replace />
   }
 
