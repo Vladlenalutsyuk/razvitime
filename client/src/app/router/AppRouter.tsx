@@ -4,6 +4,7 @@ import LoginPage from '../../pages/LoginPage/LoginPage'
 import ParentDashboardPage from '../../pages/ParentDashboardPage/ParentDashboardPage'
 import CenterDashboardPage from '../../pages/CenterDashboardPage/CenterDashboardPage'
 import ProtectedRoute from '../../components/ProtectedRoute/ProtectedRoute'
+import ActivityPage from '../../pages/ActivityPage/ActivityPage'
 
 function AppRouter() {
     return (
@@ -28,6 +29,8 @@ function AppRouter() {
                         </ProtectedRoute>
                     }
                 />
+
+                <Route path="/activity/:id" element={<ActivityPage />} />
             </Routes>
         </BrowserRouter>
     )

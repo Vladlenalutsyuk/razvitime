@@ -1,82 +1,89 @@
-// backend/routes/auth.js
-const express = require("express");
-const router = express.Router();
-const db = require("../db");
+const express = require('express')
+const router = express.Router()
+const db = require('../db')
 
-/**
- * Простая демо-авторизация.
- * Ожидает: { email, password, role }
- * Для учебного проекта можем не проверять реальный password_hash,
- * а просто принимать нужные логины.
- */
-router.post("/login", async (req, res) => {
-  const { email, password, role } = req.body;
-
-  console.log("LOGIN BODY:", { email, password, role });
+router.post('/login', async (req, res) => {
+  const { email, password, role } = req.body
 
   if (!email || !password || !role) {
-    return res.status(400).json({ error: "Укажите email, пароль и роль" });
+    return res.status(400).json({ error: 'Укажите email, пароль и роль' })
   }
 
   try {
-    if (email === "center_demo@example.com" && role === "center_admin" && password === "center123") {
-  return res.json({
-    token: "demo-token-center",
-    user: {
-      user_id: 999,
-      role: "center_admin",
-      parent_id: null,
-      parent_name: null,
-      center_id: 1,
-      center_name: "Демо центр",
-    },
-  });
-}
     const [rows] = await db.query(
-      `SELECT u.id AS user_id, u.role,
-              p.id AS parent_id, p.full_name AS parent_name,
-              c.id AS center_id, c.name AS center_name
-       FROM users u
-       LEFT JOIN parents p ON p.user_id = u.id
-       LEFT JOIN centers c ON c.user_id = u.id
-       WHERE u.email = ? AND u.role = ?
+      `SELECT id, email, phone, password_hash, role, status
+       FROM users
+       WHERE email = ? AND role = ?
        LIMIT 1`,
       [email, role]
-    );
-
-    console.log("FOUND ROWS:", rows);
+    )
 
     if (!rows.length) {
-      return res.status(401).json({ error: "Неверные данные для входа" });
+      return res.status(401).json({ error: 'Неверные данные для входа' })
     }
 
-    const u = rows[0];
-    console.log("FOUND USER:", u);
+    const user = rows[0]
 
-    if (role === "parent" && password !== "parent123") {
-      return res.status(401).json({ error: "Неверный пароль родителя (используйте parent123)" });
-    }
-    if (role === "center_admin" && password !== "center123") {
-      return res.status(401).json({ error: "Неверный пароль центра (используйте center123)" });
+    if (user.status !== 'active') {
+      return res.status(403).json({ error: 'Аккаунт не активен' })
     }
 
-    const userPayload = {
-      user_id: u.user_id,
-      role: u.role,
-      parent_id: u.parent_id || null,
-      parent_name: u.parent_name || null,
-      center_id: u.center_id || null,
-      center_name: u.center_name || null,
-    };
+    // Пока без bcrypt, как и договорились
+    if (user.password_hash !== password) {
+      return res.status(401).json({ error: 'Неверные данные для входа' })
+    }
+
+    let profile = null
+
+    if (user.role === 'parent') {
+      const [profileRows] = await db.query(
+        `SELECT id, full_name, city, telegram, whatsapp, email, avatar_url
+         FROM parent_profiles
+         WHERE user_id = ?
+         LIMIT 1`,
+        [user.id]
+      )
+
+      profile = profileRows[0] || null
+    }
+
+    if (user.role === 'center_admin') {
+      const [centerRows] = await db.query(
+        `SELECT id, name, city, logo_url
+         FROM centers
+         WHERE user_id = ?
+         LIMIT 1`,
+        [user.id]
+      )
+
+      profile = centerRows[0] || null
+    }
+
+    await db.query(
+      `UPDATE users
+       SET last_login_at = NOW()
+       WHERE id = ?`,
+      [user.id]
+    )
 
     res.json({
-      token: "demo-token-" + u.user_id,
-      user: userPayload,
-    });
+      token: `demo-token-${user.id}`,
+      user: {
+        id: user.id,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+        name:
+          profile?.full_name ||
+          profile?.name ||
+          'Пользователь',
+        profile,
+      },
+    })
   } catch (error) {
-    console.error("auth login error", error);
-    res.status(500).json({ error: "Ошибка авторизации" });
+    console.error('auth login error', error)
+    res.status(500).json({ error: 'Ошибка авторизации' })
   }
-});
+})
 
-module.exports = router;
+module.exports = router
