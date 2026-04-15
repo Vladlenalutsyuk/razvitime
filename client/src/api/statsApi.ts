@@ -9,10 +9,11 @@ export type StatsResponse = {
 
 export async function getStats(): Promise<StatsResponse> {
   const response = await fetch(`${API_BASE}/api/stats`)
+  const data = await response.json()
 
   if (!response.ok) {
-    throw new Error('Не удалось загрузить статистику')
+    throw new Error(data.error || 'Не удалось загрузить статистику')
   }
 
-  return response.json()
+  return data
 }

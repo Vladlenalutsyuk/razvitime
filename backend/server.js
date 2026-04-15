@@ -11,6 +11,7 @@ const enrollmentsRoute = require('./routes/enrollments')
 const centerRoute = require('./routes/center')
 const centerActivitiesRoute = require('./routes/centerActivities')
 const centerEnrollmentsRoute = require('./routes/centerEnrollments')
+const statsRoute = require('./routes/stats')
 
 const app = express()
 
@@ -30,6 +31,8 @@ app.use('/api/enrollments', enrollmentsRoute)
 app.use('/api/center', centerRoute)
 app.use('/api/center/activities', centerActivitiesRoute)
 app.use('/api/center/enrollments', centerEnrollmentsRoute)
+
+app.use('/api/stats', statsRoute)
 
 const PORT = process.env.PORT || 5000
 

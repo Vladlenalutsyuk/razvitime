@@ -2,30 +2,33 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import Header from '../../components/layout/Header/Header'
 import PageContainer from '../../components/layout/PageContainer/PageContainer'
-import { getStats } from '../../api/statsApi'
-
-type Stats = {
-  parents: number
-  kids: number
-  centers: number
-  activities: number
-}
+import { getStats, type StatsResponse } from '../../api/statsApi'
 
 function HomePage() {
-  const [stats, setStats] = useState<Stats | null>(null)
+  const [stats, setStats] = useState<StatsResponse | null>(null)
   const [statsError, setStatsError] = useState('')
+  const [statsLoading, setStatsLoading] = useState(false)
+
   useEffect(() => {
     async function loadStats() {
       try {
+        setStatsLoading(true)
+        setStatsError('')
+
         const data = await getStats()
         setStats(data)
       } catch (error) {
+        console.error(error)
         setStatsError('Не удалось загрузить статистику')
+        setStats(null)
+      } finally {
+        setStatsLoading(false)
       }
     }
 
     loadStats()
   }, [])
+
   return (
     <>
       <Header />
@@ -127,6 +130,7 @@ function HomePage() {
             </div>
           </PageContainer>
         </section>
+
         <section className="section">
           <PageContainer>
             <div className="section-header">
@@ -171,18 +175,18 @@ function HomePage() {
             </div>
           </PageContainer>
         </section>
+
         <section className="section stats-section">
           <PageContainer>
             <div className="section-header">
               <h2 className="section-title">Цифры и статистика</h2>
-              <p className="section-subtitle">
-                Данные подгружаются из базы РазвиТайм.
-              </p>
+              <p className="section-subtitle">Данные подгружаются из базы РазвиТайм.</p>
             </div>
 
+            {statsLoading && <p>Загрузка статистики...</p>}
             {statsError && <p>{statsError}</p>}
 
-            {stats && (
+            {stats && !statsLoading && (
               <div className="stats-grid">
                 <article className="stat-card">
                   <div className="stat-number">{stats.parents}</div>
