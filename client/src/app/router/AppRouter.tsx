@@ -4,6 +4,7 @@ import LoginPage from '../../pages/LoginPage/LoginPage'
 import ParentDashboardPage from '../../pages/ParentDashboardPage/ParentDashboardPage'
 import CenterDashboardPage from '../../pages/CenterDashboardPage/CenterDashboardPage'
 import ActivityPage from '../../pages/ActivityPage/ActivityPage'
+import PublicCenterPage from '../../pages/PublicCenterPage/PublicCenterPage'
 import ProtectedRoute from '../../components/ProtectedRoute/ProtectedRoute'
 import ToastProvider from '../../components/ui/ToastProvider/ToastProvider'
 
@@ -14,6 +15,7 @@ function AppRouter() {
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/centers/:id" element={<PublicCenterPage />} />
 
           <Route
             path="/parent"
