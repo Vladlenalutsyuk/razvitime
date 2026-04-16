@@ -94,40 +94,35 @@ function HomePage() {
     <>
       <Header />
 
-      <main>
-        <section className="hero">
+      <main className="home-page">
+        <section className="hero" id="top">
           <PageContainer>
-            <div className="hero-inner">
-              <div>
+            <div className="hero-inner hero-inner-better">
+              <div className="hero-copy">
+                <div className="hero-kicker">✨ Удобно. Понятно. По-семейному.</div>
+
                 <h1 className="hero-title">
                   РазвиТайм — это удобный онлайн-помощник для родителей
                 </h1>
 
-                <p className="hero-tagline">
+                <p className="hero-tagline hero-tagline-strong">
                   Все занятия ваших детей — в одном расписании.
                 </p>
 
-                <p
-                  style={{
-                    fontSize: '18px',
-                    lineHeight: 1.6,
-                    marginTop: '16px',
-                    marginBottom: '20px',
-                    maxWidth: '720px',
-                  }}
-                >
+                <p className="hero-description">
                   Платформа помогает родителям быстро находить кружки для детей,
                   собирать школьные уроки и занятия в одном месте, а детским
-                  центрам — получать больше заявок и снижать затраты на рекламу.
+                  центрам — получать больше заявок, повышать охваты и уменьшать
+                  затраты на рекламу.
                 </p>
 
                 <div className="hero-badges">
-                  <span className="badge">единое расписание семьи</span>
-                  <span className="badge">можно добавить школьное расписание</span>
-                  <span className="badge">личный кабинет родителей</span>
-                  <span className="badge">фильтр по поиску занятий</span>
-                  <span className="badge">для центров — больше охватов и клиентов</span>
-                  <span className="badge">меньше затрат на рекламу</span>
+                  <span className="badge">📅 единое расписание семьи</span>
+                  <span className="badge">🏫 можно добавить школьное расписание</span>
+                  <span className="badge">👩‍👧 личный кабинет родителей</span>
+                  <span className="badge">🔎 фильтр по поиску занятий</span>
+                  <span className="badge">📈 больше охватов и клиентов</span>
+                  <span className="badge">💸 меньше затрат на рекламу</span>
                 </div>
 
                 <div className="hero-actions">
@@ -146,14 +141,14 @@ function HomePage() {
                 </p>
               </div>
 
-              <div className="hero-schedule-card">
+              <div className="hero-schedule-card hero-schedule-card-better">
                 <div className="hero-schedule-header">
                   <div>
                     <div className="hero-schedule-title">
-                      Демо-расписание Марии, 8 лет
+                      👧 Демо-расписание Марии, 8 лет
                     </div>
                     <div className="hero-schedule-sub">
-                      как выглядит неделя без пересечений
+                      пример недели без пересечений
                     </div>
                   </div>
 
@@ -194,26 +189,17 @@ function HomePage() {
 
                 <div className="hero-legend">
                   <span className="legend-item">
-                    <span
-                      className="legend-dot"
-                      style={{ background: '#f0f0f3' }}
-                    ></span>{' '}
+                    <span className="legend-dot" style={{ background: '#f0f0f3' }}></span>
                     школа
                   </span>
 
                   <span className="legend-item">
-                    <span
-                      className="legend-dot"
-                      style={{ background: '#e4f6e4' }}
-                    ></span>{' '}
+                    <span className="legend-dot" style={{ background: '#e4f6e4' }}></span>
                     спорт
                   </span>
 
                   <span className="legend-item">
-                    <span
-                      className="legend-dot"
-                      style={{ background: '#ffe1c8' }}
-                    ></span>{' '}
+                    <span className="legend-dot" style={{ background: '#ffe1c8' }}></span>
                     творчество и языки
                   </span>
                 </div>
@@ -222,152 +208,166 @@ function HomePage() {
           </PageContainer>
         </section>
 
-        <section className="section" id="about">
+        <section className="section home-section-alt" id="about">
           <PageContainer>
-            <div className="section-header">
-              <h2 className="section-title">О платформе РазвиТайм</h2>
+            <div className="section-header section-header-centered">
+              <h2 className="section-title">🌿 О платформе РазвиТайм</h2>
               <p className="section-subtitle">
-                Мы объединяем родителей, детей и детские центры в одном удобном
-                онлайн-пространстве.
+                Всё важное про кружки, расписание и заявки — в одном аккуратном
+                цифровом пространстве.
               </p>
             </div>
 
-            <div className="feature-grid">
-              <article className="feature-card">
+            <div className="feature-grid home-feature-grid">
+              <article className="feature-card feature-card-home">
+                <div className="feature-emoji">🎯</div>
                 <h3>Все кружки в одном месте</h3>
                 <p>
-                  Родителям не нужно искать занятия по десяткам сайтов и чатов —
-                  каталог кружков собран в одном сервисе.
+                  Не нужно искать занятия по десяткам сайтов, чатов и объявлений —
+                  каталог собран в одном сервисе.
                 </p>
               </article>
 
-              <article className="feature-card">
+              <article className="feature-card feature-card-home">
+                <div className="feature-emoji">🗓️</div>
                 <h3>Умное расписание без пересечений</h3>
                 <p>
-                  Можно добавить школьные уроки ребёнка и подбирать занятия так,
-                  чтобы они не конфликтовали с учебной неделей.
+                  Можно добавить школьные уроки ребёнка и подбирать кружки так,
+                  чтобы всё было удобно и без накладок.
                 </p>
               </article>
 
-              <article className="feature-card">
+              <article className="feature-card feature-card-home">
+                <div className="feature-emoji">🔔</div>
                 <h3>Напоминания и удобное планирование</h3>
                 <p>
-                  Все занятия детей, статусы записей и важные события собраны в
-                  одном кабинете и одном понятном расписании.
+                  Все занятия, ближайшие события и статусы записей находятся в
+                  одном понятном личном кабинете.
                 </p>
               </article>
 
-              <article className="feature-card">
+              <article className="feature-card feature-card-home">
+                <div className="feature-emoji">🏡</div>
                 <h3>Простая работа для детских центров</h3>
                 <p>
-                  Центры размещают кружки, управляют расписанием и получают заявки
-                  от родителей без лишней рекламной нагрузки.
+                  Центры размещают кружки, управляют расписанием и получают
+                  заявки от родителей без лишней рекламной нагрузки.
                 </p>
               </article>
             </div>
           </PageContainer>
         </section>
 
-        <section className="section" id="parents">
+        <section className="section" id="guide">
           <PageContainer>
-            <div className="section-header">
-              <h2 className="section-title">Инструкция для родителей</h2>
+            <div className="section-header section-header-centered">
+              <h2 className="section-title">🧭 Инструкция</h2>
               <p className="section-subtitle">
-                Начать пользоваться платформой можно за несколько шагов.
+                Два сценария — для родителей и для центров. Всё просто и по шагам.
               </p>
             </div>
 
-            <div className="feature-grid">
-              <article className="feature-card">
-                <h3>1. Зарегистрируйтесь</h3>
-                <p>
-                  Войдите в систему как родитель и получите доступ к личному кабинету.
-                </p>
+            <div className="guide-grid">
+              <article className="guide-card guide-card-parent" id="parents">
+                <div className="guide-card-badge">Для родителей</div>
+                <h3>👨‍👩‍👧 Начать как родитель</h3>
+
+                <div className="guide-steps">
+                  <div className="guide-step">
+                    <div className="guide-step-number">1</div>
+                    <div>
+                      <b>Зарегистрируйтесь</b>
+                      <p>Войдите в систему и получите доступ к личному кабинету.</p>
+                    </div>
+                  </div>
+
+                  <div className="guide-step">
+                    <div className="guide-step-number">2</div>
+                    <div>
+                      <b>Добавьте детей и школьное расписание</b>
+                      <p>
+                        Создайте профили детей, укажите возраст и соберите учебную
+                        неделю.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="guide-step">
+                    <div className="guide-step-number">3</div>
+                    <div>
+                      <b>Подберите кружки</b>
+                      <p>
+                        Используйте фильтры по городу, возрасту и категории и
+                        записывайте ребёнка в пару кликов.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="guide-card-actions">
+                  <Link to="/login" className="btn btn-primary">
+                    Начать как родитель
+                  </Link>
+                </div>
               </article>
 
-              <article className="feature-card">
-                <h3>2. Добавьте детей и школьное расписание</h3>
-                <p>
-                  Создайте профили детей, укажите возраст и соберите для них удобную
-                  учебную неделю.
-                </p>
-              </article>
+              <article className="guide-card guide-card-center" id="centers">
+                <div className="guide-card-badge">Для центров</div>
+                <h3>🏫 Начать как детский центр</h3>
 
-              <article className="feature-card">
-                <h3>3. Подберите кружки</h3>
-                <p>
-                  Используйте фильтры по городу, возрасту и категории и записывайте
-                  ребёнка в пару кликов.
-                </p>
-              </article>
-            </div>
+                <div className="guide-steps">
+                  <div className="guide-step">
+                    <div className="guide-step-number">0</div>
+                    <div>
+                      <b>Подключите центр</b>
+                      <p>
+                        Оплатите подписку и получите логин и пароль для доступа в кабинет.
+                      </p>
+                    </div>
+                  </div>
 
-            <div style={{ marginTop: '20px' }}>
-              <Link to="/login" className="btn btn-primary">
-                Начать как родитель
-              </Link>
+                  <div className="guide-step">
+                    <div className="guide-step-number">1</div>
+                    <div>
+                      <b>Заполните профиль и кружки</b>
+                      <p>
+                        Добавьте информацию о центре, направления, возраст,
+                        стоимость и расписание занятий.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="guide-step">
+                    <div className="guide-step-number">2</div>
+                    <div>
+                      <b>Получайте заявки</b>
+                      <p>
+                        Родители увидят ваши кружки в каталоге, а вы сможете
+                        управлять записями и занятостью.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="guide-card-actions">
+                  <Link to="/login" className="btn btn-secondary">
+                    Начать как центр
+                  </Link>
+                  <Link to="/login" className="btn btn-primary">
+                    Оставить заявку
+                  </Link>
+                </div>
+              </article>
             </div>
           </PageContainer>
         </section>
 
-        <section className="section" id="centers">
+        <section className="section stats-section" id="stats">
           <PageContainer>
-            <div className="section-header">
-              <h2 className="section-title">Инструкция для центров</h2>
+            <div className="section-header section-header-centered">
+              <h2 className="section-title">📊 Цифры и статистика</h2>
               <p className="section-subtitle">
-                РазвиТайм помогает центрам расти и работать с заявками удобнее.
-              </p>
-            </div>
-
-            <div className="feature-grid">
-              <article className="feature-card">
-                <h3>0. Подключите центр</h3>
-                <p>
-                  Оплатите подписку и получите логин и пароль для доступа в кабинет центра.
-                </p>
-              </article>
-
-              <article className="feature-card">
-                <h3>1. Заполните профиль и кружки</h3>
-                <p>
-                  Добавьте информацию о центре, описание направлений, возраст,
-                  цены и расписание занятий.
-                </p>
-              </article>
-
-              <article className="feature-card">
-                <h3>2. Получайте заявки</h3>
-                <p>
-                  Родители будут видеть ваши кружки в каталоге, а вы сможете
-                  обрабатывать записи и управлять занятостью.
-                </p>
-              </article>
-            </div>
-
-            <div
-              style={{
-                marginTop: '20px',
-                display: 'flex',
-                gap: '12px',
-                flexWrap: 'wrap',
-              }}
-            >
-              <Link to="/login" className="btn btn-secondary">
-                Начать как центр
-              </Link>
-              <Link to="/login" className="btn btn-primary">
-                Оставить заявку центру
-              </Link>
-            </div>
-          </PageContainer>
-        </section>
-
-        <section className="section stats-section">
-          <PageContainer>
-            <div className="section-header">
-              <h2 className="section-title">Цифры и статистика</h2>
-              <p className="section-subtitle">
-                Данные подгружаются из базы РазвиТайм.
+                Живые данные подгружаются из базы РазвиТайм.
               </p>
             </div>
 
@@ -377,22 +377,22 @@ function HomePage() {
             {stats && !statsLoading && (
               <div className="stats-grid">
                 <article className="stat-card">
-                  <div className="stat-number">{stats.parents}</div>
+                  <div className="stat-number stat-orange">{stats.parents}</div>
                   <div className="stat-label">Родителей</div>
                 </article>
 
                 <article className="stat-card">
-                  <div className="stat-number">{stats.kids}</div>
+                  <div className="stat-number stat-green">{stats.kids}</div>
                   <div className="stat-label">Детей</div>
                 </article>
 
                 <article className="stat-card">
-                  <div className="stat-number">{stats.activities}</div>
+                  <div className="stat-number stat-orange">{stats.activities}</div>
                   <div className="stat-label">Активных кружков</div>
                 </article>
 
                 <article className="stat-card">
-                  <div className="stat-number">{stats.centers}</div>
+                  <div className="stat-number stat-green">{stats.centers}</div>
                   <div className="stat-label">Центров</div>
                 </article>
               </div>
@@ -402,21 +402,14 @@ function HomePage() {
 
         <section className="section" id="reviews">
           <PageContainer>
-            <div className="section-header">
-              <h2 className="section-title">Отзывы</h2>
+            <div className="section-header section-header-centered">
+              <h2 className="section-title">💬 Отзывы</h2>
               <p className="section-subtitle">
                 Что говорят родители и представители центров о платформе.
               </p>
             </div>
 
-            <div
-              style={{
-                display: 'flex',
-                gap: '12px',
-                marginBottom: '20px',
-                flexWrap: 'wrap',
-              }}
-            >
+            <div className="review-tabs">
               <button
                 type="button"
                 className={`btn ${
@@ -424,7 +417,7 @@ function HomePage() {
                 }`}
                 onClick={() => setActiveReviewTab('parent')}
               >
-                Отзывы родителей
+                Родители
               </button>
 
               <button
@@ -434,7 +427,7 @@ function HomePage() {
                 }`}
                 onClick={() => setActiveReviewTab('center')}
               >
-                Отзывы центров
+                Центры
               </button>
             </div>
 
@@ -446,16 +439,25 @@ function HomePage() {
             )}
 
             {visibleReviews.length > 0 && (
-              <div className="feature-grid">
+              <div className="reviews-grid">
                 {visibleReviews.map((review) => (
-                  <article key={review.id} className="feature-card">
-                    <h3>{review.author_name}</h3>
-                    <p style={{ marginBottom: '10px', color: '#666' }}>
-                      {review.role ||
-                        (review.type === 'parent' ? 'Родитель' : 'Центр')}
-                      {review.center_name ? ` • ${review.center_name}` : ''}
-                    </p>
-                    <p>{review.text}</p>
+                  <article key={review.id} className="feature-card review-card-home">
+                    <div className="review-card-top">
+                      <div className="review-avatar">
+                        {review.author_name.slice(0, 1)}
+                      </div>
+
+                      <div>
+                        <h3>{review.author_name}</h3>
+                        <p className="review-role-text">
+                          {review.role ||
+                            (review.type === 'parent' ? 'Родитель' : 'Центр')}
+                          {review.center_name ? ` • ${review.center_name}` : ''}
+                        </p>
+                      </div>
+                    </div>
+
+                    <p className="review-main-text">“{review.text}”</p>
                   </article>
                 ))}
               </div>
@@ -463,10 +465,10 @@ function HomePage() {
           </PageContainer>
         </section>
 
-        <section className="section" id="partners">
+        <section className="section home-section-alt" id="partners">
           <PageContainer>
-            <div className="section-header">
-              <h2 className="section-title">С нами сотрудничают</h2>
+            <div className="section-header section-header-centered">
+              <h2 className="section-title">🤝 С нами сотрудничают</h2>
               <p className="section-subtitle">
                 Детские центры, которые уже размещают свои кружки на платформе.
               </p>
@@ -480,46 +482,34 @@ function HomePage() {
             )}
 
             {partners.length > 0 && (
-              <div className="feature-grid">
+              <div className="partners-grid">
                 {partners.map((center) => (
-                  <article key={center.id} className="feature-card">
-                    <div
-                      style={{
-                        width: '56px',
-                        height: '56px',
-                        borderRadius: '14px',
-                        background: '#f4f4f6',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontWeight: 700,
-                        marginBottom: '14px',
-                        overflow: 'hidden',
-                      }}
-                    >
-                      {center.logo_url ? (
-                        <img
-                          src={center.logo_url}
-                          alt={center.name}
-                          style={{
-                            width: '100%',
-                            height: '100%',
-                            objectFit: 'cover',
-                          }}
-                        />
-                      ) : (
-                        center.name.slice(0, 1)
-                      )}
+                  <article key={center.id} className="feature-card partner-card-home">
+                    <div className="partner-top">
+                      <div className="partner-logo-box">
+                        {center.logo_url ? (
+                          <img
+                            src={center.logo_url}
+                            alt={center.name}
+                            className="partner-logo-image"
+                          />
+                        ) : (
+                          center.name.slice(0, 1)
+                        )}
+                      </div>
+
+                      <div>
+                        <h3>{center.name}</h3>
+                        <p className="partner-city-text">{center.city}</p>
+                      </div>
                     </div>
 
-                    <h3>{center.name}</h3>
-                    <p style={{ color: '#666', marginBottom: '10px' }}>{center.city}</p>
-                    <p>
+                    <p className="partner-desc-text">
                       {center.short_description ||
-                        'Детский центр партнёр платформы РазвиТайм.'}
+                        'Детский центр-партнёр платформы РазвиТайм.'}
                     </p>
 
-                    <div style={{ marginTop: '14px' }}>
+                    <div className="partner-actions">
                       <Link
                         to={`/centers/${center.id}`}
                         className="btn btn-secondary btn-sm"
@@ -534,39 +524,47 @@ function HomePage() {
           </PageContainer>
         </section>
 
-        <footer className="section" style={{ paddingTop: 0 }}>
+        <section className="section" id="support">
           <PageContainer>
-            <div className="feature-card">
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  gap: '20px',
-                  flexWrap: 'wrap',
-                  alignItems: 'center',
-                }}
-              >
-                <div>
-                  <h3 style={{ marginBottom: '8px' }}>РазвиТайм</h3>
-                  <p style={{ margin: 0 }}>
-                    Удобный онлайн-помощник для родителей и детских центров.
-                  </p>
-                </div>
+            <div className="support-card">
+              <div className="support-copy">
+                <div className="support-kicker">📩 Поддержка и связь</div>
+                <h2>Нужна помощь или хотите подключить центр?</h2>
+                <p>
+                  Напишите нам — поможем разобраться с платформой, регистрацией,
+                  размещением кружков и подключением центра.
+                </p>
+              </div>
 
-                <div
-                  style={{
-                    display: 'flex',
-                    gap: '16px',
-                    flexWrap: 'wrap',
-                  }}
-                >
-                  <a href="#about">О платформе</a>
-                  <a href="#parents">Для родителей</a>
-                  <a href="#centers">Для центров</a>
-                  <a href="#partners">Контакты</a>
-                  <a href="#about">Политика конфиденциальности</a>
-                  <a href="#about">Пользовательское соглашение</a>
-                </div>
+              <div className="support-actions">
+                <Link to="/login" className="btn btn-primary">
+                  Перейти ко входу
+                </Link>
+                <a href="#top" className="btn btn-secondary">
+                  Наверх
+                </a>
+              </div>
+            </div>
+          </PageContainer>
+        </section>
+
+        <footer className="home-footer">
+          <PageContainer>
+            <div className="home-footer-inner">
+              <div className="home-footer-brand">
+                <div className="home-footer-title">РазвиТайм</div>
+                <p>
+                  Удобный онлайн-помощник для родителей и детских центров.
+                </p>
+              </div>
+
+              <div className="home-footer-links">
+                <a href="/#about">О платформе</a>
+                <a href="/#guide">Инструкция</a>
+                <a href="/#stats">Статистика</a>
+                <a href="/#reviews">Отзывы</a>
+                <a href="/#partners">Центры</a>
+                <a href="/#support">Поддержка</a>
               </div>
             </div>
           </PageContainer>
