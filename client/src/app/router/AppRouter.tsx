@@ -16,6 +16,7 @@ function AppRouter() {
           <Route path="/" element={<HomePage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/centers/:id" element={<PublicCenterPage />} />
+          <Route path="/activity/:id" element={<ActivityPage />} />
 
           <Route
             path="/parent"
@@ -31,15 +32,6 @@ function AppRouter() {
             element={
               <ProtectedRoute allowedRole="center_admin">
                 <CenterDashboardPage />
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/activity/:id"
-            element={
-              <ProtectedRoute>
-                <ActivityPage />
               </ProtectedRoute>
             }
           />

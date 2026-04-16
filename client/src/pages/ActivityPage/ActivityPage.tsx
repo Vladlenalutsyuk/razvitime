@@ -38,12 +38,25 @@ function formatSessionTime(session: ActivitySession) {
   return `${session.start_time}–${session.end_time}`
 }
 
+function formatPrice(price: number, paymentType?: string) {
+  if (paymentType === 'free') {
+    return 'Бесплатно'
+  }
+
+  if (paymentType === 'per_lesson') {
+    return `${price} ₽ за занятие`
+  }
+
+  return `${price} ₽ в месяц`
+}
+
 function ActivityPage() {
   const { id } = useParams()
   const auth = getAuth()
   const { showToast } = useToast()
 
   const userId = auth?.user?.id
+  const isParent = auth?.user?.role === 'parent'
   const activityId = Number(id)
 
   const [activity, setActivity] = useState<ActivityDetail | null>(null)
@@ -81,7 +94,7 @@ function ActivityPage() {
   }, [activityId])
 
   useEffect(() => {
-    if (typeof userId !== 'number') {
+    if (!isParent || typeof userId !== 'number') {
       setKids([])
       return
     }
@@ -102,10 +115,10 @@ function ActivityPage() {
     }
 
     loadChildren()
-  }, [userId])
+  }, [userId, isParent])
 
   useEffect(() => {
-    if (typeof userId !== 'number') {
+    if (!isParent || typeof userId !== 'number') {
       setEnrollments([])
       return
     }
@@ -126,11 +139,15 @@ function ActivityPage() {
     }
 
     loadEnrollments()
-  }, [userId])
+  }, [userId, isParent])
 
   const currentEnrollment = useMemo(() => {
+    if (!isParent) {
+      return null
+    }
+
     return enrollments.find((item) => item.activity_id === activityId) || null
-  }, [enrollments, activityId])
+  }, [enrollments, activityId, isParent])
 
   const enrolledKid = useMemo(() => {
     if (!currentEnrollment) {
@@ -150,7 +167,9 @@ function ActivityPage() {
 
   async function handleEnroll() {
     if (!auth) {
-      showToast('Сначала войдите в аккаунт', { type: 'error' })
+      showToast('Чтобы записать ребёнка, сначала войдите в аккаунт', {
+        type: 'info',
+      })
       return
     }
 
@@ -253,8 +272,8 @@ function ActivityPage() {
               <h1 className="section-title">Занятие не найдено</h1>
 
               <div style={{ marginTop: '16px' }}>
-                <Link to="/parent" className="btn btn-secondary">
-                  Назад в кабинет
+                <Link to="/" className="btn btn-secondary">
+                  На главную
                 </Link>
               </div>
             </PageContainer>
@@ -273,7 +292,9 @@ function ActivityPage() {
           <PageContainer>
             <div className="section-header">
               <h1 className="section-title">{activity.title}</h1>
-              <p className="section-subtitle">Подробная информация о занятии</p>
+              <p className="section-subtitle">
+                Подробная информация о занятии
+              </p>
             </div>
 
             <div className="feature-card">
@@ -306,7 +327,7 @@ function ActivityPage() {
               )}
 
               <p>
-                <b>Цена:</b> {activity.price} ₽
+                <b>Цена:</b> {formatPrice(activity.price, activity.payment_type)}
               </p>
 
               {activity.sessions && activity.sessions.length > 0 && (
@@ -323,83 +344,140 @@ function ActivityPage() {
                 </div>
               )}
 
-              <div className="auth-field" style={{ marginTop: '16px' }}>
-                <label>Выберите ребёнка</label>
+              {!auth && (
+                <div
+                  className="feature-card"
+                  style={{ marginTop: '18px', background: '#faf8ff' }}
+                >
+                  <h3 style={{ marginBottom: '8px' }}>
+                    Хотите записать ребёнка?
+                  </h3>
+                  <p style={{ marginBottom: '12px' }}>
+                    Войдите как родитель, чтобы выбрать ребёнка и оформить запись
+                    на кружок.
+                  </p>
 
-                {kidsLoading ? (
-                  <p>Загрузка детей...</p>
-                ) : (
-                  <select
-                    value={selectedKidId}
-                    onChange={(e) => setSelectedKidId(e.target.value)}
-                    disabled={
-                      !!currentEnrollment || kids.length === 0 || actionLoading
-                    }
+                  <Link to="/login" className="btn btn-primary">
+                    Войти как родитель
+                  </Link>
+                </div>
+              )}
+
+              {auth && auth.user.role !== 'parent' && (
+                <div
+                  className="feature-card"
+                  style={{ marginTop: '18px', background: '#faf8ff' }}
+                >
+                  <h3 style={{ marginBottom: '8px' }}>
+                    Запись доступна только родителю
+                  </h3>
+                  <p>
+                    Вы можете просматривать информацию о кружке, но оформление
+                    записи доступно из аккаунта родителя.
+                  </p>
+                </div>
+              )}
+
+              {isParent && (
+                <>
+                  <div className="auth-field" style={{ marginTop: '16px' }}>
+                    <label>Выберите ребёнка</label>
+
+                    {kidsLoading ? (
+                      <p>Загрузка детей...</p>
+                    ) : (
+                      <select
+                        value={selectedKidId}
+                        onChange={(e) => setSelectedKidId(e.target.value)}
+                        disabled={
+                          !!currentEnrollment ||
+                          kids.length === 0 ||
+                          actionLoading
+                        }
+                      >
+                        <option value="">Выберите ребёнка</option>
+
+                        {kids.map((kid) => (
+                          <option key={kid.id} value={kid.id}>
+                            {kid.name}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+
+                  {!kidsLoading && kids.length === 0 && (
+                    <p style={{ marginTop: '12px' }}>
+                      Сначала добавьте ребёнка в кабинете родителя.
+                    </p>
+                  )}
+
+                  {enrollmentsLoading && (
+                    <p style={{ marginTop: '12px' }}>Проверяем записи...</p>
+                  )}
+
+                  {enrolledKid && (
+                    <p style={{ marginTop: '12px' }}>
+                      <b>Сейчас записан:</b> {enrolledKid.name}
+                    </p>
+                  )}
+
+                  {currentEnrollment && (
+                    <p style={{ marginTop: '12px' }}>
+                      <b>Статус записи:</b>{' '}
+                      {enrollmentStatusMap[currentEnrollment.status]}
+                    </p>
+                  )}
+
+                  <div
+                    style={{
+                      marginTop: '16px',
+                      display: 'flex',
+                      gap: '12px',
+                      flexWrap: 'wrap',
+                    }}
                   >
-                    <option value="">Выберите ребёнка</option>
+                    {!currentEnrollment ? (
+                      <button
+                        className="btn btn-primary"
+                        onClick={handleEnroll}
+                        disabled={
+                          kids.length === 0 || actionLoading || kidsLoading
+                        }
+                      >
+                        {actionLoading ? 'Сохраняем...' : 'Записаться'}
+                      </button>
+                    ) : (
+                      <button
+                        className="btn btn-outline"
+                        onClick={handleUnenroll}
+                        disabled={actionLoading}
+                      >
+                        {actionLoading ? 'Отменяем...' : 'Отменить запись'}
+                      </button>
+                    )}
 
-                    {kids.map((kid) => (
-                      <option key={kid.id} value={kid.id}>
-                        {kid.name}
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </div>
-
-              {!kidsLoading && kids.length === 0 && (
-                <p style={{ marginTop: '12px' }}>
-                  Сначала добавьте ребёнка в кабинете родителя.
-                </p>
+                    <Link to="/parent" className="btn btn-secondary">
+                      Назад в кабинет
+                    </Link>
+                  </div>
+                </>
               )}
 
-              {enrollmentsLoading && (
-                <p style={{ marginTop: '12px' }}>Проверяем записи...</p>
+              {!isParent && (
+                <div
+                  style={{
+                    marginTop: '16px',
+                    display: 'flex',
+                    gap: '12px',
+                    flexWrap: 'wrap',
+                  }}
+                >
+                  <Link to="/" className="btn btn-secondary">
+                    На главную
+                  </Link>
+                </div>
               )}
-
-              {enrolledKid && (
-                <p style={{ marginTop: '12px' }}>
-                  <b>Сейчас записан:</b> {enrolledKid.name}
-                </p>
-              )}
-
-              {currentEnrollment && (
-                <p style={{ marginTop: '12px' }}>
-                  <b>Статус записи:</b>{' '}
-                  {enrollmentStatusMap[currentEnrollment.status]}
-                </p>
-              )}
-
-              <div
-                style={{
-                  marginTop: '16px',
-                  display: 'flex',
-                  gap: '12px',
-                  flexWrap: 'wrap',
-                }}
-              >
-                {!currentEnrollment ? (
-                  <button
-                    className="btn btn-primary"
-                    onClick={handleEnroll}
-                    disabled={kids.length === 0 || actionLoading || kidsLoading}
-                  >
-                    {actionLoading ? 'Сохраняем...' : 'Записаться'}
-                  </button>
-                ) : (
-                  <button
-                    className="btn btn-outline"
-                    onClick={handleUnenroll}
-                    disabled={actionLoading}
-                  >
-                    {actionLoading ? 'Отменяем...' : 'Отменить запись'}
-                  </button>
-                )}
-
-                <Link to="/parent" className="btn btn-secondary">
-                  Назад в кабинет
-                </Link>
-              </div>
             </div>
           </PageContainer>
         </section>
