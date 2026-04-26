@@ -95,9 +95,9 @@ function HomePage() {
       <Header />
 
       <main className="home-page">
-        <section className="hero" id="top">
+        <section className="hero home-anchor-section" id="top">
           <PageContainer>
-            <div className="hero-inner hero-inner-better">
+            <div className="hero-inner">
               <div className="hero-copy">
                 <div className="hero-kicker">✨ Удобно. Понятно. По-семейному.</div>
 
@@ -112,16 +112,16 @@ function HomePage() {
                 <p className="hero-description">
                   Платформа помогает родителям быстро находить кружки для детей,
                   собирать школьные уроки и занятия в одном месте, а детским
-                  центрам — получать больше заявок, повышать охваты и уменьшать
+                  центрам — получать больше заявок, повышать охваты и снижать
                   затраты на рекламу.
                 </p>
 
                 <div className="hero-badges">
                   <span className="badge">📅 единое расписание семьи</span>
-                  <span className="badge">🏫 можно добавить школьное расписание</span>
+                  <span className="badge">🏫 школьное расписание</span>
                   <span className="badge">👩‍👧 личный кабинет родителей</span>
-                  <span className="badge">🔎 фильтр по поиску занятий</span>
-                  <span className="badge">📈 больше охватов и клиентов</span>
+                  <span className="badge">🔎 поиск с фильтрами</span>
+                  <span className="badge">📈 больше клиентов для центров</span>
                   <span className="badge">💸 меньше затрат на рекламу</span>
                 </div>
 
@@ -141,7 +141,7 @@ function HomePage() {
                 </p>
               </div>
 
-              <div className="hero-schedule-card hero-schedule-card-better">
+              <div className="hero-schedule-card">
                 <div className="hero-schedule-header">
                   <div>
                     <div className="hero-schedule-title">
@@ -189,17 +189,17 @@ function HomePage() {
 
                 <div className="hero-legend">
                   <span className="legend-item">
-                    <span className="legend-dot" style={{ background: '#f0f0f3' }}></span>
+                    <span className="legend-dot hero-legend-school"></span>
                     школа
                   </span>
 
                   <span className="legend-item">
-                    <span className="legend-dot" style={{ background: '#e4f6e4' }}></span>
+                    <span className="legend-dot hero-legend-sport"></span>
                     спорт
                   </span>
 
                   <span className="legend-item">
-                    <span className="legend-dot" style={{ background: '#ffe1c8' }}></span>
+                    <span className="legend-dot hero-legend-creative"></span>
                     творчество и языки
                   </span>
                 </div>
@@ -208,12 +208,12 @@ function HomePage() {
           </PageContainer>
         </section>
 
-        <section className="section home-section-alt" id="about">
+        <section className="section home-anchor-section home-section-alt" id="about">
           <PageContainer>
             <div className="section-header section-header-centered">
               <h2 className="section-title">🌿 О платформе РазвиТайм</h2>
               <p className="section-subtitle">
-                Всё важное про кружки, расписание и заявки — в одном аккуратном
+                Всё важное про кружки, расписание и заявки — в одном удобном
                 цифровом пространстве.
               </p>
             </div>
@@ -223,7 +223,7 @@ function HomePage() {
                 <div className="feature-emoji">🎯</div>
                 <h3>Все кружки в одном месте</h3>
                 <p>
-                  Не нужно искать занятия по десяткам сайтов, чатов и объявлений —
+                  Родителям не нужно искать занятия по десяткам сайтов и чатов —
                   каталог собран в одном сервисе.
                 </p>
               </article>
@@ -241,8 +241,8 @@ function HomePage() {
                 <div className="feature-emoji">🔔</div>
                 <h3>Напоминания и удобное планирование</h3>
                 <p>
-                  Все занятия, ближайшие события и статусы записей находятся в
-                  одном понятном личном кабинете.
+                  Все занятия детей, ближайшие события и статусы записей собраны
+                  в одном понятном кабинете.
                 </p>
               </article>
 
@@ -250,20 +250,20 @@ function HomePage() {
                 <div className="feature-emoji">🏡</div>
                 <h3>Простая работа для детских центров</h3>
                 <p>
-                  Центры размещают кружки, управляют расписанием и получают
-                  заявки от родителей без лишней рекламной нагрузки.
+                  Центры размещают кружки, управляют расписанием и получают заявки
+                  от родителей без лишней рекламной нагрузки.
                 </p>
               </article>
             </div>
           </PageContainer>
         </section>
 
-        <section className="section" id="guide">
+        <section className="section home-anchor-section" id="guide">
           <PageContainer>
             <div className="section-header section-header-centered">
               <h2 className="section-title">🧭 Инструкция</h2>
               <p className="section-subtitle">
-                Два сценария — для родителей и для центров. Всё просто и по шагам.
+                Два понятных сценария — для родителей и для центров.
               </p>
             </div>
 
@@ -353,6 +353,7 @@ function HomePage() {
                   <Link to="/login" className="btn btn-secondary">
                     Начать как центр
                   </Link>
+
                   <Link to="/login" className="btn btn-primary">
                     Оставить заявку
                   </Link>
@@ -362,7 +363,7 @@ function HomePage() {
           </PageContainer>
         </section>
 
-        <section className="section stats-section" id="stats">
+        <section className="section stats-section home-anchor-section" id="stats">
           <PageContainer>
             <div className="section-header section-header-centered">
               <h2 className="section-title">📊 Цифры и статистика</h2>
@@ -400,7 +401,7 @@ function HomePage() {
           </PageContainer>
         </section>
 
-        <section className="section" id="reviews">
+        <section className="section home-anchor-section" id="reviews">
           <PageContainer>
             <div className="section-header section-header-centered">
               <h2 className="section-title">💬 Отзывы</h2>
@@ -465,7 +466,10 @@ function HomePage() {
           </PageContainer>
         </section>
 
-        <section className="section home-section-alt" id="partners">
+        <section
+          className="section home-anchor-section home-section-alt"
+          id="partners"
+        >
           <PageContainer>
             <div className="section-header section-header-centered">
               <h2 className="section-title">🤝 С нами сотрудничают</h2>
@@ -524,7 +528,7 @@ function HomePage() {
           </PageContainer>
         </section>
 
-        <section className="section" id="support">
+        <section className="section home-anchor-section" id="support">
           <PageContainer>
             <div className="support-card">
               <div className="support-copy">
@@ -540,6 +544,7 @@ function HomePage() {
                 <Link to="/login" className="btn btn-primary">
                   Перейти ко входу
                 </Link>
+
                 <a href="#top" className="btn btn-secondary">
                   Наверх
                 </a>

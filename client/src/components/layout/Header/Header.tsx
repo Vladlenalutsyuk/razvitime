@@ -41,12 +41,8 @@ function Header() {
   return (
     <header className="app-header">
       <div className="container app-header-inner">
-        <div className="logo-block">
-          <Link
-            to="/"
-            className="logo-link"
-            style={{ textDecoration: 'none', color: 'inherit' }}
-          >
+        <Link to="/" className="logo-link">
+          <div className="logo-block">
             <img src="/logo.png" alt="Логотип РазвиТайм" className="logo-image" />
 
             <div className="logo-texts">
@@ -55,8 +51,8 @@ function Header() {
                 онлайн-помощник для родителей и детских центров
               </div>
             </div>
-          </Link>
-        </div>
+          </div>
+        </Link>
 
         <button
           type="button"
@@ -64,9 +60,9 @@ function Header() {
           onClick={() => setMenuOpen((prev) => !prev)}
           aria-label="Открыть меню"
         >
-          <span></span>
-          <span></span>
-          <span></span>
+          <span />
+          <span />
+          <span />
         </button>
 
         <div className={`header-right ${menuOpen ? 'open' : ''}`}>
