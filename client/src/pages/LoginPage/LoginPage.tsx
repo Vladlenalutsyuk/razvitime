@@ -1,10 +1,10 @@
-//D:\Data USER\Desktop\razvitime\client\src\pages\LoginPage\LoginPage.tsx
 import { useState, type FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import Header from '../../components/layout/Header/Header'
 import PageContainer from '../../components/layout/PageContainer/PageContainer'
 import { login } from '../../api/authApi'
 import { useToast } from '../../components/ui/ToastProvider/ToastProvider'
+import './LoginPage.css'
 
 function LoginPage() {
   const navigate = useNavigate()
@@ -65,64 +65,76 @@ function LoginPage() {
     <>
       <Header />
 
-      <main>
-        <section className="section">
-          <PageContainer>
-            <h2 className="section-title">Вход в систему</h2>
-
-            <form onSubmit={handleSubmit} className="auth-form">
-              <input
-                type="email"
-                placeholder="Email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                disabled={submitting}
-              />
-
-              <input
-                type="password"
-                placeholder="Пароль"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                disabled={submitting}
-              />
-
-              <div>
-                <label>
-                  <input
-                    type="radio"
-                    name="role"
-                    checked={role === 'parent'}
-                    onChange={() => setRole('parent')}
-                    disabled={submitting}
-                  />
-                  Родитель
-                </label>
-
-                <label style={{ marginLeft: '16px' }}>
-                  <input
-                    type="radio"
-                    name="role"
-                    checked={role === 'center_admin'}
-                    onChange={() => setRole('center_admin')}
-                    disabled={submitting}
-                  />
-                  Детский центр
-                </label>
+      <main className="login-page">
+        <PageContainer>
+          <section className="login-section">
+            <div className="login-card">
+              <div className="login-header">
+                <p className="login-kicker">Вход в систему</p>
+                <h1>Добро пожаловать обратно</h1>
+                <p>Войдите в аккаунт родителя или детского центра.</p>
               </div>
 
-              <button
-                type="submit"
-                className="btn btn-primary"
-                disabled={submitting}
-              >
-                {submitting ? 'Входим...' : 'Войти'}
-              </button>
+              <form onSubmit={handleSubmit} className="login-form">
+                <label className="login-field">
+                  <span>Email</span>
+                  <input
+                    type="email"
+                    placeholder="example@mail.ru"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    disabled={submitting}
+                  />
+                </label>
 
-              {error && <p style={{ color: 'red' }}>{error}</p>}
-            </form>
-          </PageContainer>
-        </section>
+                <label className="login-field">
+                  <span>Пароль</span>
+                  <input
+                    type="password"
+                    placeholder="Введите пароль"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    disabled={submitting}
+                  />
+                </label>
+
+                <div className="login-role-tabs">
+                  <button
+                    type="button"
+                    className={role === 'parent' ? 'active' : ''}
+                    onClick={() => setRole('parent')}
+                    disabled={submitting}
+                  >
+                    Родитель
+                  </button>
+
+                  <button
+                    type="button"
+                    className={role === 'center_admin' ? 'active' : ''}
+                    onClick={() => setRole('center_admin')}
+                    disabled={submitting}
+                  >
+                    Детский центр
+                  </button>
+                </div>
+
+                <button
+                  type="submit"
+                  className="btn btn-primary login-submit"
+                  disabled={submitting}
+                >
+                  {submitting ? 'Входим...' : 'Войти'}
+                </button>
+
+                {error && <p className="login-error">{error}</p>}
+
+                <p className="login-register-link">
+                  Нет аккаунта? <Link to="/register">Создать аккаунт</Link>
+                </p>
+              </form>
+            </div>
+          </section>
+        </PageContainer>
       </main>
     </>
   )

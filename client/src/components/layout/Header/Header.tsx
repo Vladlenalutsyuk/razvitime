@@ -81,7 +81,7 @@ function Header() {
                   </button>
                 )}
 
-                <Link to="/login" className="btn btn-primary btn-sm">
+                <Link to="/register" className="btn btn-primary btn-sm">
                   Создать аккаунт
                 </Link>
               </>

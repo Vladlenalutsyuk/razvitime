@@ -1,3 +1,4 @@
+//D:\Data USER\Desktop\razvitime\backend\db.js
 const mysql = require('mysql2/promise')
 require('dotenv').config()
 

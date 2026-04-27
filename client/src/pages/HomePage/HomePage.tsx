@@ -1,9 +1,9 @@
-//D:\Data USER\Desktop\razvitime\client\src\pages\HomePage\HomePage.tsx
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import Header from '../../components/layout/Header/Header'
 import PageContainer from '../../components/layout/PageContainer/PageContainer'
 import { getStats, type StatsResponse } from '../../api/statsApi'
+import { useToast } from '../../components/ui/ToastProvider/ToastProvider'
 import './HomePage.css'
 import {
   getPartnerCenters,
@@ -15,6 +15,8 @@ import {
 type ReviewTab = 'parent' | 'center'
 
 function HomePage() {
+  const { showToast } = useToast()
+
   const [stats, setStats] = useState<StatsResponse | null>(null)
   const [statsError, setStatsError] = useState('')
   const [statsLoading, setStatsLoading] = useState(false)
@@ -27,6 +29,15 @@ function HomePage() {
   const [partners, setPartners] = useState<PartnerCenter[]>([])
   const [partnersLoading, setPartnersLoading] = useState(false)
   const [partnersError, setPartnersError] = useState('')
+
+  async function handleCopyEmail() {
+    try {
+      await navigator.clipboard.writeText('vladlenalutsyuk@yandex.ru')
+      showToast('Почта скопирована', { type: 'success' })
+    } catch {
+      showToast('Не удалось скопировать почту', { type: 'error' })
+    }
+  }
 
   useEffect(() => {
     async function loadStats() {
@@ -128,11 +139,11 @@ function HomePage() {
                 </div>
 
                 <div className="hero-actions">
-                  <Link to="/login" className="btn btn-primary">
+                  <Link to="/register" className="btn btn-primary">
                     Я родитель
                   </Link>
 
-                  <Link to="/login" className="btn btn-secondary">
+                  <Link to="/center-application" className="btn btn-secondary">
                     Я детский центр
                   </Link>
                 </div>
@@ -243,7 +254,7 @@ function HomePage() {
                 </div>
 
                 <div className="guide-card-actions">
-                  <Link to="/login" className="btn btn-primary">
+                  <Link to="/register" className="btn btn-primary">
                     Начать как родитель
                   </Link>
                 </div>
@@ -257,10 +268,9 @@ function HomePage() {
                   <div className="guide-step">
                     <div className="guide-step-number">1</div>
                     <div>
-                      <b>Подключите центр</b>
+                      <b>Оставьте заявку</b>
                       <p>
-                        Оплатите подписку и получите логин и пароль для доступа в
-                        кабинет.
+                        Укажите название центра, город и контакты — мы свяжемся с вами.
                       </p>
                     </div>
                   </div>
@@ -268,10 +278,10 @@ function HomePage() {
                   <div className="guide-step">
                     <div className="guide-step-number">2</div>
                     <div>
-                      <b>Заполните профиль и кружки</b>
+                      <b>Подключение и доступ</b>
                       <p>
-                        Добавьте информацию о центре, направления, возраст,
-                        стоимость и расписание занятий.
+                        После проверки мы подключим центр и выдадим доступ в личный
+                        кабинет.
                       </p>
                     </div>
                   </div>
@@ -279,21 +289,27 @@ function HomePage() {
                   <div className="guide-step">
                     <div className="guide-step-number">3</div>
                     <div>
+                      <b>Добавьте кружки</b>
+                      <p>
+                        Заполните профиль центра, создайте занятия и настройте расписание.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="guide-step">
+                    <div className="guide-step-number">4</div>
+                    <div>
                       <b>Получайте заявки</b>
                       <p>
-                        Родители увидят ваши кружки в каталоге, а вы сможете
-                        управлять записями и занятостью.
+                        Родители будут записываться на занятия, а вы — управлять ими в
+                        кабинете.
                       </p>
                     </div>
                   </div>
                 </div>
 
                 <div className="guide-card-actions">
-                  <Link to="/login" className="btn btn-secondary">
-                    Начать как центр
-                  </Link>
-
-                  <Link to="/login" className="btn btn-primary">
+                  <Link to="/center-application" className="btn btn-primary">
                     Оставить заявку
                   </Link>
                 </div>
@@ -405,10 +421,7 @@ function HomePage() {
           </PageContainer>
         </section>
 
-        <section
-          className="section home-anchor-section home-section-alt"
-          id="partners"
-        >
+        <section className="section home-anchor-section home-section-alt" id="partners">
           <PageContainer>
             <div className="section-header section-header-centered">
               <h2 className="section-title">🤝 С нами сотрудничают</h2>
@@ -479,14 +492,35 @@ function HomePage() {
                 </p>
               </div>
 
-              <div className="support-actions">
-                <Link to="/login" className="btn btn-primary">
-                  Перейти ко входу
-                </Link>
-
-                <a href="#top" className="btn btn-secondary">
-                  Наверх
+              <div className="support-contacts">
+                <a
+                  href="https://vk.com/id535966949"
+                  className="support-contact-link"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <span className="support-contact-icon">VK</span>
+                  <span>ВКонтакте</span>
                 </a>
+
+                <a
+                  href="https://t.me/vladlena_ll"
+                  className="support-contact-link"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <span className="support-contact-icon">TG</span>
+                  <span>Telegram</span>
+                </a>
+
+                <button
+                  type="button"
+                  className="support-contact-link"
+                  onClick={handleCopyEmail}
+                >
+                  <span className="support-contact-icon">@</span>
+                  <span>vladlenalutsyuk@yandex.ru</span>
+                </button>
               </div>
             </div>
           </PageContainer>
