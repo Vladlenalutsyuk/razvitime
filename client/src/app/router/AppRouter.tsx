@@ -1,3 +1,4 @@
+//D:\Data USER\Desktop\razvitime\client\src\app\router\AppRouter.tsx
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import HomePage from '../../pages/HomePage/HomePage'
 import LoginPage from '../../pages/LoginPage/LoginPage'

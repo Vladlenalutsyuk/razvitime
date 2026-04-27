@@ -1,4 +1,3 @@
-//D:\Data USER\Desktop\razvitime\client\src\pages\ParentDashboardPage\ParentDashboardPage.tsx
 import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import Header from '../../components/layout/Header/Header'
@@ -28,11 +27,21 @@ import {
   type Enrollment,
 } from '../../api/enrollmentsApi'
 
+import {
+  getSchoolLessons,
+  createSchoolLesson,
+  updateSchoolLesson,
+  deleteSchoolLesson,
+  type SchoolLesson,
+} from '../../api/schoolLessonsApi'
+
 import { useToast } from '../../components/ui/ToastProvider/ToastProvider'
 import './ParentDashboardPage.css'
 
-type Section = 'search' | 'kids' | 'schedule' | 'profile' | 'help'
+type Section = 'schedule' | 'search' | 'kids' | 'profile' | 'help'
 type TimeOfDay = '' | 'morning' | 'day' | 'evening'
+type ScheduleView = 'day' | 'week' | 'month'
+type ScheduleMode = 'all' | 'school' | 'activities'
 
 type KidForm = {
   name: string
@@ -74,6 +83,16 @@ const emptyKidForm: KidForm = {
   birthdate: '',
   gender: '',
   photo_url: '',
+}
+
+const emptyLessonForm = {
+  child_id: '',
+  weekday: '1',
+  lesson_number: '',
+  start_time: '',
+  end_time: '',
+  subject: '',
+  classroom: '',
 }
 
 function getKidAge(birthdate: string) {
@@ -146,13 +165,36 @@ function hasActivityConflict(activityA?: Activity, activityB?: Activity) {
   )
 }
 
+function hasSchoolConflict(activity: Activity, lessons: SchoolLesson[]) {
+  if (!activity.sessions?.length || lessons.length === 0) {
+    return null
+  }
+
+  for (const session of activity.sessions) {
+    for (const lesson of lessons) {
+      if (session.weekday !== lesson.weekday) continue
+      if (!lesson.start_time || !lesson.end_time) continue
+
+      const hasConflict =
+        session.start_time < lesson.end_time &&
+        session.end_time > lesson.start_time
+
+      if (hasConflict) {
+        return lesson
+      }
+    }
+  }
+
+  return null
+}
+
 function ParentDashboardPage() {
   const auth = getAuth()
   const userId = auth?.user?.id
   const isParent = auth?.user?.role === 'parent'
   const { showToast } = useToast()
 
-  const [activeSection, setActiveSection] = useState<Section>('search')
+  const [activeSection, setActiveSection] = useState<Section>('schedule')
 
   const [profile, setProfile] = useState<ParentProfile>({
     city: '',
@@ -194,9 +236,23 @@ function ParentDashboardPage() {
 
   const [enrollments, setEnrollments] = useState<Enrollment[]>([])
   const [enrollmentsLoading, setEnrollmentsLoading] = useState(false)
+
+  const [schoolLessons, setSchoolLessons] = useState<SchoolLesson[]>([])
+  const [schoolLessonsLoading, setSchoolLessonsLoading] = useState(false)
+
+  const [selectedScheduleChildId, setSelectedScheduleChildId] =
+    useState<string>('all')
+  const [scheduleView, setScheduleView] = useState<ScheduleView>('week')
+  const [scheduleMode, setScheduleMode] = useState<ScheduleMode>('all')
+  const [selectedScheduleDay, setSelectedScheduleDay] = useState('1')
+
+  const [editingLessonId, setEditingLessonId] = useState<number | null>(null)
+  const [lessonForm, setLessonForm] = useState(emptyLessonForm)
+
   const [selectedChildByActivity, setSelectedChildByActivity] = useState<
     Record<number, string>
   >({})
+
   const [enrollmentSubmittingId, setEnrollmentSubmittingId] = useState<
     number | null
   >(null)
@@ -256,6 +312,11 @@ function ParentDashboardPage() {
   async function reloadEnrollments(safeUserId: number) {
     const data = await getEnrollments(safeUserId)
     setEnrollments(data)
+  }
+
+  async function reloadSchoolLessons(safeUserId: number) {
+    const data = await getSchoolLessons(safeUserId)
+    setSchoolLessons(data)
   }
 
   useEffect(() => {
@@ -368,6 +429,29 @@ function ParentDashboardPage() {
     loadEnrollments()
   }, [userId, isParent])
 
+  useEffect(() => {
+    if (typeof userId !== 'number' || !isParent) {
+      setSchoolLessons([])
+      return
+    }
+
+    const safeUserId = userId
+
+    async function loadSchoolLessons() {
+      try {
+        setSchoolLessonsLoading(true)
+        await reloadSchoolLessons(safeUserId)
+      } catch (error) {
+        console.error(error)
+        setSchoolLessons([])
+      } finally {
+        setSchoolLessonsLoading(false)
+      }
+    }
+
+    loadSchoolLessons()
+  }, [userId, isParent])
+
   function handleFilterChange(
     e: ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) {
@@ -387,6 +471,203 @@ function ParentDashboardPage() {
   ) {
     const { name, value } = e.target
     setEditKid((prev) => ({ ...prev, [name]: value }))
+  }
+
+  function handleLessonChange(
+    e: ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) {
+    const { name, value } = e.target
+    setLessonForm((prev) => ({ ...prev, [name]: value }))
+  }
+
+  function resetLessonForm() {
+    setLessonForm(emptyLessonForm)
+    setEditingLessonId(null)
+  }
+
+  function startEditLesson(lesson: SchoolLesson) {
+    setEditingLessonId(lesson.id)
+    setSelectedScheduleChildId(String(lesson.child_id))
+    setLessonForm({
+      child_id: String(lesson.child_id),
+      weekday: String(lesson.weekday),
+      lesson_number: lesson.lesson_number ? String(lesson.lesson_number) : '',
+      start_time: lesson.start_time ? lesson.start_time.slice(0, 5) : '',
+      end_time: lesson.end_time ? lesson.end_time.slice(0, 5) : '',
+      subject: lesson.subject,
+      classroom: lesson.classroom || '',
+    })
+  }
+
+  async function handleSaveLesson() {
+    const childId =
+      editingLessonId && lessonForm.child_id
+        ? Number(lessonForm.child_id)
+        : Number(selectedScheduleChildId)
+
+    if (!childId || selectedScheduleChildId === 'all') {
+      showToast('Сначала выберите одного ребёнка в расписании', {
+        type: 'error',
+      })
+      return
+    }
+
+    if (!lessonForm.subject.trim()) {
+      showToast('Введите предмет', { type: 'error' })
+      return
+    }
+
+    if (!lessonForm.start_time || !lessonForm.end_time) {
+      showToast('Введите время урока', { type: 'error' })
+      return
+    }
+
+    if (lessonForm.start_time >= lessonForm.end_time) {
+      showToast('Время окончания должно быть позже начала', { type: 'error' })
+      return
+    }
+
+    const payload = {
+      child_id: childId,
+      weekday: Number(lessonForm.weekday),
+      lesson_number: lessonForm.lesson_number
+        ? Number(lessonForm.lesson_number)
+        : null,
+      start_time: lessonForm.start_time,
+      end_time: lessonForm.end_time,
+      subject: lessonForm.subject.trim(),
+      classroom: lessonForm.classroom.trim() || null,
+    }
+
+    try {
+      if (editingLessonId) {
+        const updatedLesson = await updateSchoolLesson(editingLessonId, payload)
+
+        setSchoolLessons((prev) =>
+          prev.map((lesson) =>
+            lesson.id === editingLessonId ? updatedLesson : lesson
+          )
+        )
+
+        showToast('Урок обновлён', { type: 'success' })
+      } else {
+        const createdLesson = await createSchoolLesson(payload)
+
+        setSchoolLessons((prev) => [createdLesson, ...prev])
+        showToast('Урок добавлен', { type: 'success' })
+      }
+
+      resetLessonForm()
+    } catch (error) {
+      console.error(error)
+      showToast(
+        error instanceof Error ? error.message : 'Не удалось сохранить урок',
+        { type: 'error' }
+      )
+    }
+  }
+
+  async function handleDeleteLesson(id: number) {
+    const isConfirmed = window.confirm('Удалить урок из расписания?')
+    if (!isConfirmed) return
+
+    try {
+      await deleteSchoolLesson(id)
+      setSchoolLessons((prev) => prev.filter((lesson) => lesson.id !== id))
+      showToast('Урок удалён', { type: 'success' })
+    } catch (error) {
+      console.error(error)
+      showToast(
+        error instanceof Error ? error.message : 'Не удалось удалить урок',
+        { type: 'error' }
+      )
+    }
+  }
+
+  function handleExportSchedule() {
+    const selectedKids = kids.filter((kid) =>
+      selectedScheduleChildId === 'all'
+        ? true
+        : kid.id === Number(selectedScheduleChildId)
+    )
+
+    let text = 'Расписание РазвиТайм\n\n'
+
+    selectedKids.forEach((kid) => {
+      text += `${kid.name}\n`
+
+      weekdays
+        .filter((day) => day.value)
+        .forEach((day) => {
+          const dayNumber = Number(day.value)
+
+          const lessons = schoolLessons.filter(
+            (lesson) =>
+              lesson.child_id === kid.id && lesson.weekday === dayNumber
+          )
+
+          const childEnrollments = enrollments.filter(
+            (item) => item.child_id === kid.id
+          )
+
+          text += `\n${day.label}:\n`
+
+          let hasItems = false
+
+          if (scheduleMode !== 'activities') {
+            lessons.forEach((lesson) => {
+              hasItems = true
+              text += `- Школа: ${lesson.subject}, ${lesson.start_time?.slice(
+                0,
+                5
+              )}–${lesson.end_time?.slice(0, 5)}\n`
+            })
+          }
+
+          if (scheduleMode !== 'school') {
+            childEnrollments.forEach((item) => {
+              const activity = activities.find(
+                (activityItem) => activityItem.id === item.activity_id
+              )
+
+              activity?.sessions
+                ?.filter((session) => session.weekday === dayNumber)
+                .forEach((session) => {
+                  hasItems = true
+                  text += `- Кружок: ${item.title}, ${session.start_time.slice(
+                    0,
+                    5
+                  )}–${session.end_time.slice(0, 5)}\n`
+                })
+            })
+          }
+
+          if (!hasItems) {
+            text += '- Нет занятий\n'
+          }
+        })
+
+      text += '\n----------------------\n\n'
+    })
+
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'raspisanie-razvitime.txt'
+    link.click()
+
+    URL.revokeObjectURL(url)
+  }
+
+  async function handleCopyEmail() {
+    try {
+      await navigator.clipboard.writeText('vladlenalutsyuk@yandex.ru')
+      showToast('Почта скопирована', { type: 'success' })
+    } catch {
+      showToast('Не удалось скопировать почту', { type: 'error' })
+    }
   }
 
   async function handleAddKid() {
@@ -493,6 +774,7 @@ function ParentDashboardPage() {
 
       setKids((prev) => prev.filter((kid) => kid.id !== id))
       setEnrollments((prev) => prev.filter((item) => item.child_id !== id))
+      setSchoolLessons((prev) => prev.filter((item) => item.child_id !== id))
       showToast('Ребёнок удалён', { type: 'success' })
     } catch (error) {
       console.error(error)
@@ -571,6 +853,30 @@ function ParentDashboardPage() {
     if (age !== null && (age < activity.age_min || age > activity.age_max)) {
       const isConfirmed = window.confirm(
         `Возраст ребёнка не подходит под ограничения кружка (${activity.age_min}–${activity.age_max}). Всё равно отправить заявку?`
+      )
+
+      if (!isConfirmed) return
+    }
+
+    const selectedChildSchoolLessons = schoolLessons.filter(
+      (lesson) => lesson.child_id === selectedChildId
+    )
+
+    const schoolConflict = hasSchoolConflict(
+      activity,
+      selectedChildSchoolLessons
+    )
+
+    if (schoolConflict) {
+      const day =
+        weekdayMap[schoolConflict.weekday] ||
+        `День ${schoolConflict.weekday}`
+
+      const isConfirmed = window.confirm(
+        `Выбранный кружок пересекается со школьным уроком: ${schoolConflict.subject}, ${day}, ${schoolConflict.start_time?.slice(
+          0,
+          5
+        )}–${schoolConflict.end_time?.slice(0, 5)}. Всё равно записать?`
       )
 
       if (!isConfirmed) return
@@ -666,23 +972,6 @@ function ParentDashboardPage() {
             <p className="parent-subtitle">Добро пожаловать, {userName}</p>
           </section>
 
-          <section className="parent-stats-grid">
-            <div className="parent-stat-card">
-              <b>{kids.length}</b>
-              <span>детей в профиле</span>
-            </div>
-
-            <div className="parent-stat-card">
-              <b>{activeEnrollments.length}</b>
-              <span>активных записей</span>
-            </div>
-
-            <div className="parent-stat-card">
-              <b>{nextLessons.length}</b>
-              <span>ближайших занятий</span>
-            </div>
-          </section>
-
           {nextLessons.length > 0 && (
             <section className="parent-card parent-next-lessons">
               <h3>Ближайшие занятия</h3>
@@ -715,6 +1004,16 @@ function ParentDashboardPage() {
             <button
               type="button"
               className={`parent-tab-btn ${
+                activeSection === 'schedule' ? 'active' : ''
+              }`}
+              onClick={() => setActiveSection('schedule')}
+            >
+              Расписание
+            </button>
+
+            <button
+              type="button"
+              className={`parent-tab-btn ${
                 activeSection === 'search' ? 'active' : ''
               }`}
               onClick={() => setActiveSection('search')}
@@ -730,16 +1029,6 @@ function ParentDashboardPage() {
               onClick={() => setActiveSection('kids')}
             >
               Мои дети
-            </button>
-
-            <button
-              type="button"
-              className={`parent-tab-btn ${
-                activeSection === 'schedule' ? 'active' : ''
-              }`}
-              onClick={() => setActiveSection('schedule')}
-            >
-              Расписание
             </button>
 
             <button
@@ -764,6 +1053,436 @@ function ParentDashboardPage() {
           </div>
 
           <section className="parent-main">
+            {activeSection === 'schedule' && (
+              <div className="parent-section-card">
+                <div className="parent-section-header">
+                  <h1>Расписание</h1>
+                  <p>Школьные уроки и кружки детей в одном месте.</p>
+                </div>
+
+                <div className="parent-schedule-controls">
+                  <div className="parent-field">
+                    <label>Ребёнок</label>
+                    <select
+                      className="parent-select"
+                      value={selectedScheduleChildId}
+                      onChange={(e) => {
+                        setSelectedScheduleChildId(e.target.value)
+                        resetLessonForm()
+                      }}
+                    >
+                      <option value="all">Все дети</option>
+                      {kids.map((kid) => (
+                        <option key={kid.id} value={kid.id}>
+                          {kid.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="parent-field">
+                    <label>Период</label>
+                    <select
+                      className="parent-select"
+                      value={scheduleView}
+                      onChange={(e) =>
+                        setScheduleView(e.target.value as ScheduleView)
+                      }
+                    >
+                      <option value="day">День</option>
+                      <option value="week">Неделя</option>
+                      <option value="month">Месяц</option>
+                    </select>
+                  </div>
+
+                  {scheduleView === 'day' && (
+                    <div className="parent-field">
+                      <label>День</label>
+                      <select
+                        className="parent-select"
+                        value={selectedScheduleDay}
+                        onChange={(e) => setSelectedScheduleDay(e.target.value)}
+                      >
+                        {weekdays
+                          .filter((day) => day.value)
+                          .map((day) => (
+                            <option key={day.value} value={day.value}>
+                              {day.label}
+                            </option>
+                          ))}
+                      </select>
+                    </div>
+                  )}
+
+                  <div className="parent-field">
+                    <label>Что показать</label>
+                    <select
+                      className="parent-select"
+                      value={scheduleMode}
+                      onChange={(e) =>
+                        setScheduleMode(e.target.value as ScheduleMode)
+                      }
+                    >
+                      <option value="all">Школа + кружки</option>
+                      <option value="school">Только школа</option>
+                      <option value="activities">Только кружки</option>
+                    </select>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm parent-export-btn"
+                    onClick={handleExportSchedule}
+                  >
+                    Экспортировать
+                  </button>
+                </div>
+
+                {schoolLessonsLoading || enrollmentsLoading ? (
+                  <p>Загрузка расписания...</p>
+                ) : (
+                  <div className="parent-schedule-list">
+                    {kids
+                      .filter((kid) =>
+                        selectedScheduleChildId === 'all'
+                          ? true
+                          : kid.id === Number(selectedScheduleChildId)
+                      )
+                      .map((kid) => {
+                        const childLessons = schoolLessons.filter(
+                          (lesson) => lesson.child_id === kid.id
+                        )
+
+                        const childEnrollments = enrollments.filter(
+                          (item) => item.child_id === kid.id
+                        )
+
+                        const visibleDays =
+                          scheduleView === 'day'
+                            ? weekdays.filter(
+                                (day) => day.value === selectedScheduleDay
+                              )
+                            : weekdays.filter((day) => day.value)
+
+                        const monthWeeks = [1, 2, 3, 4]
+
+                        return (
+                          <div key={kid.id} className="parent-schedule-child">
+                            <h2>{kid.name}</h2>
+
+                            <div
+                              className={
+                                scheduleView === 'month'
+                                  ? 'parent-month-grid'
+                                  : 'parent-week-view'
+                              }
+                            >
+                              {(scheduleView === 'month' ? monthWeeks : [1]).map(
+                                (weekNumber) => (
+                                  <div
+                                    key={weekNumber}
+                                    className={
+                                      scheduleView === 'month'
+                                        ? 'parent-month-week'
+                                        : 'parent-week-row'
+                                    }
+                                  >
+                                    {scheduleView === 'month' && (
+                                      <h3>Неделя {weekNumber}</h3>
+                                    )}
+
+                                    <div className="parent-week-grid">
+                                      {visibleDays.map((day) => {
+                                        const dayNumber = Number(day.value)
+
+                                        const lessonsByDay =
+                                          childLessons.filter(
+                                            (lesson) =>
+                                              lesson.weekday === dayNumber
+                                          )
+
+                                        const enrollmentsByDay =
+                                          childEnrollments.filter((item) => {
+                                            const activity = activities.find(
+                                              (activityItem) =>
+                                                activityItem.id ===
+                                                item.activity_id
+                                            )
+
+                                            return activity?.sessions?.some(
+                                              (session) =>
+                                                session.weekday === dayNumber
+                                            )
+                                          })
+
+                                        const isEmpty =
+                                          (scheduleMode === 'activities' ||
+                                            lessonsByDay.length === 0) &&
+                                          (scheduleMode === 'school' ||
+                                            enrollmentsByDay.length === 0)
+
+                                        return (
+                                          <div
+                                            key={day.value}
+                                            className="parent-day-column"
+                                          >
+                                            <h3>{day.label}</h3>
+
+                                            {isEmpty && (
+                                              <p className="parent-empty-day">
+                                                Нет занятий
+                                              </p>
+                                            )}
+
+                                            {scheduleMode !== 'activities' &&
+                                              lessonsByDay.map((lesson) => (
+                                                <div
+                                                  key={lesson.id}
+                                                  className="parent-schedule-item school"
+                                                >
+                                                  <b>{lesson.subject}</b>
+                                                  <span>
+                                                    {lesson.start_time?.slice(
+                                                      0,
+                                                      5
+                                                    )}
+                                                    –
+                                                    {lesson.end_time?.slice(
+                                                      0,
+                                                      5
+                                                    )}
+                                                  </span>
+
+                                                  {lesson.lesson_number && (
+                                                    <small>
+                                                      Урок №
+                                                      {lesson.lesson_number}
+                                                    </small>
+                                                  )}
+
+                                                  {lesson.classroom && (
+                                                    <small>
+                                                      Кабинет:{' '}
+                                                      {lesson.classroom}
+                                                    </small>
+                                                  )}
+
+                                                  <div className="parent-mini-actions">
+                                                    <button
+                                                      type="button"
+                                                      onClick={() =>
+                                                        startEditLesson(lesson)
+                                                      }
+                                                    >
+                                                      Изм.
+                                                    </button>
+
+                                                    <button
+                                                      type="button"
+                                                      onClick={() =>
+                                                        handleDeleteLesson(
+                                                          lesson.id
+                                                        )
+                                                      }
+                                                    >
+                                                      Удалить
+                                                    </button>
+                                                  </div>
+                                                </div>
+                                              ))}
+
+                                            {scheduleMode !== 'school' &&
+                                              enrollmentsByDay.map((item) => {
+                                                const activity =
+                                                  activities.find(
+                                                    (activityItem) =>
+                                                      activityItem.id ===
+                                                      item.activity_id
+                                                  )
+
+                                                const sessions =
+                                                  activity?.sessions?.filter(
+                                                    (session) =>
+                                                      session.weekday ===
+                                                      dayNumber
+                                                  ) || []
+
+                                                return sessions.map(
+                                                  (session, sessionIndex) => (
+                                                    <div
+                                                      key={`${item.id}-${sessionIndex}`}
+                                                      className="parent-schedule-item activity"
+                                                    >
+                                                      <b>{item.title}</b>
+                                                      <span>
+                                                        {session.start_time.slice(
+                                                          0,
+                                                          5
+                                                        )}
+                                                        –
+                                                        {session.end_time.slice(
+                                                          0,
+                                                          5
+                                                        )}
+                                                      </span>
+                                                      <small>
+                                                        {item.center_name}
+                                                      </small>
+                                                      <small>
+                                                        {
+                                                          enrollmentStatusMap[
+                                                            item.status
+                                                          ]
+                                                        }
+                                                      </small>
+
+                                                      <button
+                                                        type="button"
+                                                        className="btn btn-outline btn-sm"
+                                                        onClick={() =>
+                                                          handleUnenroll(
+                                                            item.id
+                                                          )
+                                                        }
+                                                      >
+                                                        Отменить
+                                                      </button>
+                                                    </div>
+                                                  )
+                                                )
+                                              })}
+                                          </div>
+                                        )
+                                      })}
+                                    </div>
+                                  </div>
+                                )
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })}
+                  </div>
+                )}
+
+                <div className="parent-form-card parent-lesson-form">
+                  <h3>
+                    {editingLessonId
+                      ? 'Редактировать школьный урок'
+                      : selectedScheduleChildId === 'all'
+                        ? 'Выберите ребёнка, чтобы добавить школьный урок'
+                        : 'Добавить школьный урок'}
+                  </h3>
+
+                  {selectedScheduleChildId === 'all' && !editingLessonId ? (
+                    <p className="parent-muted-text">
+                      Для добавления урока выберите одного ребёнка в фильтре
+                      выше.
+                    </p>
+                  ) : (
+                    <>
+                      <div className="parent-lesson-grid">
+                        <div className="parent-field">
+                          <label>День недели</label>
+                          <select
+                            className="parent-select"
+                            name="weekday"
+                            value={lessonForm.weekday}
+                            onChange={handleLessonChange}
+                          >
+                            {weekdays
+                              .filter((day) => day.value)
+                              .map((day) => (
+                                <option key={day.value} value={day.value}>
+                                  {day.label}
+                                </option>
+                              ))}
+                          </select>
+                        </div>
+
+                        <div className="parent-field">
+                          <label>Номер урока</label>
+                          <input
+                            className="parent-input"
+                            type="number"
+                            name="lesson_number"
+                            value={lessonForm.lesson_number}
+                            onChange={handleLessonChange}
+                          />
+                        </div>
+
+                        <div className="parent-field">
+                          <label>Начало</label>
+                          <input
+                            className="parent-input"
+                            type="time"
+                            name="start_time"
+                            value={lessonForm.start_time}
+                            onChange={handleLessonChange}
+                          />
+                        </div>
+
+                        <div className="parent-field">
+                          <label>Конец</label>
+                          <input
+                            className="parent-input"
+                            type="time"
+                            name="end_time"
+                            value={lessonForm.end_time}
+                            onChange={handleLessonChange}
+                          />
+                        </div>
+
+                        <div className="parent-field">
+                          <label>Предмет</label>
+                          <input
+                            className="parent-input"
+                            type="text"
+                            name="subject"
+                            value={lessonForm.subject}
+                            onChange={handleLessonChange}
+                          />
+                        </div>
+
+                        <div className="parent-field">
+                          <label>Кабинет</label>
+                          <input
+                            className="parent-input"
+                            type="text"
+                            name="classroom"
+                            value={lessonForm.classroom}
+                            onChange={handleLessonChange}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="parent-card-actions">
+                        <button
+                          type="button"
+                          className="btn btn-primary btn-sm"
+                          onClick={handleSaveLesson}
+                        >
+                          {editingLessonId
+                            ? 'Сохранить изменения'
+                            : 'Добавить урок'}
+                        </button>
+
+                        {editingLessonId && (
+                          <button
+                            type="button"
+                            className="btn btn-outline btn-sm"
+                            onClick={resetLessonForm}
+                          >
+                            Отмена
+                          </button>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+
             {activeSection === 'search' && (
               <div className="parent-section-card">
                 <div className="parent-section-header">
@@ -1044,7 +1763,10 @@ function ParentDashboardPage() {
                               <button
                                 type="button"
                                 className="btn btn-outline btn-sm"
-                                onClick={() => setActiveSection('schedule')}
+                                onClick={() => {
+                                  setSelectedScheduleChildId(String(kid.id))
+                                  setActiveSection('schedule')
+                                }}
                               >
                                 Расписание ребёнка
                               </button>
@@ -1052,7 +1774,11 @@ function ParentDashboardPage() {
                               <button
                                 type="button"
                                 className="btn btn-outline btn-sm"
-                                onClick={() => setActiveSection('schedule')}
+                                onClick={() => {
+                                  setSelectedScheduleChildId(String(kid.id))
+                                  setScheduleMode('activities')
+                                  setActiveSection('schedule')
+                                }}
                               >
                                 Кружки ребёнка
                               </button>
@@ -1222,84 +1948,6 @@ function ParentDashboardPage() {
               </div>
             )}
 
-            {activeSection === 'schedule' && (
-              <div className="parent-section-card">
-                <div className="parent-section-header">
-                  <h1>Расписание</h1>
-                  <p>Здесь отображаются кружки, на которые записаны дети.</p>
-                </div>
-
-                {enrollmentsLoading && <p>Загрузка записей...</p>}
-
-                {!enrollmentsLoading && enrollments.length === 0 && (
-                  <p>Вы пока не записали детей ни на одно занятие</p>
-                )}
-
-                {kids.map((kid) => {
-                  const childEnrollments = enrollments.filter(
-                    (item) => item.child_id === kid.id
-                  )
-
-                  if (childEnrollments.length === 0) return null
-
-                  return (
-                    <div key={kid.id} className="parent-schedule-child">
-                      <h2>{kid.name}</h2>
-
-                      {childEnrollments.map((item) => {
-                        const activity = activities.find(
-                          (activityItem) => activityItem.id === item.activity_id
-                        )
-
-                        return (
-                          <article
-                            key={item.id}
-                            className="parent-activity-card"
-                          >
-                            <h3>{item.title}</h3>
-
-                            <p>
-                              <b>Центр:</b> {item.center_name}
-                            </p>
-                            <p>
-                              <b>Город:</b> {item.city}
-                            </p>
-                            <p>
-                              <b>Категория:</b> {item.category}
-                            </p>
-                            <p>
-                              <b>Расписание:</b>{' '}
-                              {activity
-                                ? getSessionText(activity)
-                                : 'Расписание уточняется'}
-                            </p>
-
-                            {item.price != null && (
-                              <p>
-                                <b>Цена:</b> {item.price} ₽
-                              </p>
-                            )}
-
-                            <p>
-                              <b>Статус:</b> {enrollmentStatusMap[item.status]}
-                            </p>
-
-                            <button
-                              type="button"
-                              className="btn btn-outline btn-sm"
-                              onClick={() => handleUnenroll(item.id)}
-                            >
-                              Отменить запись
-                            </button>
-                          </article>
-                        )
-                      })}
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-
             {activeSection === 'profile' && (
               <div className="parent-section-card">
                 <div className="parent-section-header">
@@ -1385,17 +2033,67 @@ function ParentDashboardPage() {
               <div className="parent-section-card">
                 <div className="parent-section-header">
                   <h1>Помощь</h1>
-                  <p>Короткая инструкция по использованию кабинета родителя.</p>
+                  <p>Короткая инструкция и контакты поддержки.</p>
                 </div>
 
-                <div className="parent-card">
-                  <ol className="parent-help-list">
-                    <li>Добавьте детей во вкладке «Мои дети».</li>
-                    <li>Перейдите в «Найти занятия» и подберите кружок.</li>
-                    <li>Выберите ребёнка и нажмите «Записать».</li>
-                    <li>Проверьте активные записи во вкладке «Расписание».</li>
-                    <li>Заполните контактные данные во вкладке «Мой профиль».</li>
-                  </ol>
+                <div className="parent-help-grid">
+                  <div className="parent-card">
+                    <h3>Как пользоваться кабинетом</h3>
+
+                    <ol className="parent-help-list">
+                      <li>Сначала откройте вкладку «Расписание».</li>
+                      <li>Выберите ребёнка и добавьте школьные уроки.</li>
+                      <li>Перейдите в «Найти занятия» и подберите кружок.</li>
+                      <li>Выберите ребёнка и нажмите «Записать».</li>
+                      <li>
+                        Если кружок пересекается со школой или другим кружком,
+                        система покажет предупреждение.
+                      </li>
+                      <li>Расписание можно экспортировать в текстовый файл.</li>
+                    </ol>
+                  </div>
+
+                  <div className="parent-support-card">
+                    <div>
+                      <div className="support-kicker">📩 Поддержка и связь</div>
+                      <h2>Нужна помощь?</h2>
+                      <p>
+                        Напишите нам — поможем разобраться с расписанием,
+                        записью на кружки и личным кабинетом.
+                      </p>
+                    </div>
+
+                    <div className="support-contacts">
+                      <a
+                        href="https://vk.com/id535966949"
+                        className="support-contact-link"
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        <span className="support-contact-icon">VK</span>
+                        <span>ВКонтакте</span>
+                      </a>
+
+                      <a
+                        href="https://t.me/vladlena_ll"
+                        className="support-contact-link"
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        <span className="support-contact-icon">TG</span>
+                        <span>Telegram</span>
+                      </a>
+
+                      <button
+                        type="button"
+                        className="support-contact-link"
+                        onClick={handleCopyEmail}
+                      >
+                        <span className="support-contact-icon">@</span>
+                        <span>vladlenalutsyuk@yandex.ru</span>
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}

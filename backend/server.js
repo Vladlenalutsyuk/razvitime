@@ -15,6 +15,7 @@ const centerEnrollmentsRoute = require('./routes/centerEnrollments')
 const statsRoute = require('./routes/stats')
 const publicRoute = require('./routes/public')
 const centerApplicationsRoute = require('./routes/centerApplications')
+const schoolLessonsRoutes = require('./routes/schoolLessons')
 
 const app = express()
 
@@ -38,6 +39,7 @@ app.use('/api/center/enrollments', centerEnrollmentsRoute)
 app.use('/api/stats', statsRoute)
 app.use('/api/public', publicRoute)
 app.use('/api/center-applications', centerApplicationsRoute)
+app.use('/api', schoolLessonsRoutes)
 
 const PORT = process.env.PORT || 5000
 
