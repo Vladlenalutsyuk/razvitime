@@ -1,8 +1,10 @@
+//D:\Data USER\Desktop\razvitime\client\src\pages\HomePage\HomePage.tsx
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import Header from '../../components/layout/Header/Header'
 import PageContainer from '../../components/layout/PageContainer/PageContainer'
 import { getStats, type StatsResponse } from '../../api/statsApi'
+import './HomePage.css'
 import {
   getPartnerCenters,
   getPublishedReviews,
@@ -140,70 +142,6 @@ function HomePage() {
                   которым нужен удобный цифровой кабинет и стабильный поток заявок.
                 </p>
               </div>
-
-              <div className="hero-schedule-card">
-                <div className="hero-schedule-header">
-                  <div>
-                    <div className="hero-schedule-title">
-                      👧 Демо-расписание Марии, 8 лет
-                    </div>
-                    <div className="hero-schedule-sub">
-                      пример недели без пересечений
-                    </div>
-                  </div>
-
-                  <span className="hero-chip">демо-режим</span>
-                </div>
-
-                <div className="schedule-grid">
-                  <div>
-                    <div className="schedule-day">Пн</div>
-                    <div className="schedule-slot slot-school">Школа 8:30–13:30</div>
-                    <div className="schedule-slot slot-creative">Рисование 16:00</div>
-                  </div>
-
-                  <div>
-                    <div className="schedule-day">Вт</div>
-                    <div className="schedule-slot slot-school">Школа 8:30–13:30</div>
-                    <div className="schedule-slot slot-sport">Плавание 18:00</div>
-                  </div>
-
-                  <div>
-                    <div className="schedule-day">Ср</div>
-                    <div className="schedule-slot slot-school">Школа 8:30–13:30</div>
-                    <div className="schedule-slot slot-creative">Английский 17:00</div>
-                  </div>
-
-                  <div>
-                    <div className="schedule-day">Чт</div>
-                    <div className="schedule-slot slot-school">Школа 8:30–13:30</div>
-                    <div className="schedule-slot slot-sport">Гимнастика 17:30</div>
-                  </div>
-
-                  <div>
-                    <div className="schedule-day">Пт</div>
-                    <div className="schedule-slot slot-school">Школа 8:30–12:30</div>
-                    <div className="schedule-slot slot-creative">Робототехника 16:30</div>
-                  </div>
-                </div>
-
-                <div className="hero-legend">
-                  <span className="legend-item">
-                    <span className="legend-dot hero-legend-school"></span>
-                    школа
-                  </span>
-
-                  <span className="legend-item">
-                    <span className="legend-dot hero-legend-sport"></span>
-                    спорт
-                  </span>
-
-                  <span className="legend-item">
-                    <span className="legend-dot hero-legend-creative"></span>
-                    творчество и языки
-                  </span>
-                </div>
-              </div>
             </div>
           </PageContainer>
         </section>
@@ -317,17 +255,18 @@ function HomePage() {
 
                 <div className="guide-steps">
                   <div className="guide-step">
-                    <div className="guide-step-number">0</div>
+                    <div className="guide-step-number">1</div>
                     <div>
                       <b>Подключите центр</b>
                       <p>
-                        Оплатите подписку и получите логин и пароль для доступа в кабинет.
+                        Оплатите подписку и получите логин и пароль для доступа в
+                        кабинет.
                       </p>
                     </div>
                   </div>
 
                   <div className="guide-step">
-                    <div className="guide-step-number">1</div>
+                    <div className="guide-step-number">2</div>
                     <div>
                       <b>Заполните профиль и кружки</b>
                       <p>
@@ -338,7 +277,7 @@ function HomePage() {
                   </div>
 
                   <div className="guide-step">
-                    <div className="guide-step-number">2</div>
+                    <div className="guide-step-number">3</div>
                     <div>
                       <b>Получайте заявки</b>
                       <p>
@@ -558,9 +497,7 @@ function HomePage() {
             <div className="home-footer-inner">
               <div className="home-footer-brand">
                 <div className="home-footer-title">РазвиТайм</div>
-                <p>
-                  Удобный онлайн-помощник для родителей и детских центров.
-                </p>
+                <p>Удобный онлайн-помощник для родителей и детских центров.</p>
               </div>
 
               <div className="home-footer-links">

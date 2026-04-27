@@ -1,13 +1,11 @@
-import { useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { clearAuth, getAuth } from '../../../utils/auth'
+import './Header.css'
 
 function Header() {
   const auth = getAuth()
   const navigate = useNavigate()
   const location = useLocation()
-
-  const [menuOpen, setMenuOpen] = useState(false)
 
   const isLoginPage = location.pathname === '/login'
   const userRole = auth?.user?.role
@@ -25,10 +23,6 @@ function Header() {
         ? '/center'
         : '/'
 
-  useEffect(() => {
-    setMenuOpen(false)
-  }, [location.pathname, location.hash])
-
   function handleLogout() {
     clearAuth()
     navigate('/login', { replace: true })
@@ -39,44 +33,40 @@ function Header() {
   }
 
   return (
-    <header className="app-header">
-      <div className="container app-header-inner">
-        <Link to="/" className="logo-link">
-          <div className="logo-block">
-            <img src="/logo.png" alt="Логотип РазвиТайм" className="logo-image" />
+    <>
+      <aside className="side-menu">
+        <img
+          src="/logo.png"
+          alt="Логотип РазвиТайм"
+          className="side-menu-bg-logo"
+        />
+        <nav className="side-menu-links">
+          <a href="/">Главная</a>
+          <a href="/#about">О платформе</a>
+          <a href="/#guide">Инструкция</a>
+          <a href="/#stats">Статистика</a>
+          <a href="/#reviews">Отзывы</a>
+          <a href="/#partners">Центры</a>
+          <a href="/#support">Поддержка</a>
 
-            <div className="logo-texts">
-              <div className="logo-text-main">РазвиТайм</div>
-              <div className="logo-text-sub">
-                онлайн-помощник для родителей и детских центров
+          {auth && <Link to={dashboardPath}>Личный кабинет</Link>}
+        </nav>
+      </aside>
+
+      <header className="app-header">
+        <div className="container app-header-inner">
+          <Link to="/" className="header-logo-link">
+            <div className="header-logo-block">
+              <img src="/logo.png" alt="Логотип РазвиТайм" className="header-logo-image" />
+
+              <div className="header-logo-texts">
+                <div className="header-logo-title">РазвиТайм</div>
+                <div className="header-logo-subtitle">
+                  платформа детских развивающих центров
+                </div>
               </div>
             </div>
-          </div>
-        </Link>
-
-        <button
-          type="button"
-          className={`header-burger ${menuOpen ? 'open' : ''}`}
-          onClick={() => setMenuOpen((prev) => !prev)}
-          aria-label="Открыть меню"
-        >
-          <span />
-          <span />
-          <span />
-        </button>
-
-        <div className={`header-right ${menuOpen ? 'open' : ''}`}>
-          <nav className="nav-links nav-links-home">
-            <a href="/">Главная</a>
-            <a href="/#about">О платформе</a>
-            <a href="/#guide">Инструкция</a>
-            <a href="/#stats">Статистика</a>
-            <a href="/#reviews">Отзывы</a>
-            <a href="/#partners">Центры</a>
-            <a href="/#support">Поддержка</a>
-
-            {auth && <Link to={dashboardPath}>Личный кабинет</Link>}
-          </nav>
+          </Link>
 
           <div className="nav-auth">
             {!auth ? (
@@ -87,7 +77,7 @@ function Header() {
                     className="btn btn-secondary btn-sm"
                     onClick={handleLoginClick}
                   >
-                    Войти
+                    Вход
                   </button>
                 )}
 
@@ -114,8 +104,8 @@ function Header() {
             )}
           </div>
         </div>
-      </div>
-    </header>
+      </header>
+    </>
   )
 }
 

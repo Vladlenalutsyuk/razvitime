@@ -1,3 +1,4 @@
+//D:\Data USER\Desktop\razvitime\client\src\components\layout\PageContainer\PageContainer.tsx
 import type { ReactNode } from 'react'
 
 type PageContainerProps = {

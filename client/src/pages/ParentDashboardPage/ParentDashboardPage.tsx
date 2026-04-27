@@ -1,4 +1,4 @@
-import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import Header from '../../components/layout/Header/Header'
 import PageContainer from '../../components/layout/PageContainer/PageContainer'
@@ -13,6 +13,7 @@ import {
 import {
   getChildren,
   createChild,
+  updateChild,
   deleteChild,
   type Child,
 } from '../../api/childrenApi'
@@ -21,18 +22,118 @@ import { getActivities, type Activity } from '../../api/activitiesApi'
 
 import {
   getEnrollments,
+  createEnrollment,
   deleteEnrollment,
   type Enrollment,
 } from '../../api/enrollmentsApi'
 import { useToast } from '../../components/ui/ToastProvider/ToastProvider'
 
 type Section = 'search' | 'kids' | 'schedule' | 'profile' | 'help'
+type TimeOfDay = '' | 'morning' | 'day' | 'evening'
+
+type KidForm = {
+  name: string
+  birthdate: string
+  gender: string
+  photo_url: string
+}
 
 const enrollmentStatusMap: Record<Enrollment['status'], string> = {
   pending: 'На рассмотрении',
   approved: 'Подтверждена',
   declined: 'Отклонена',
   cancelled: 'Отменена',
+}
+
+const weekdays = [
+  { value: '', label: 'Любой день' },
+  { value: '1', label: 'Понедельник' },
+  { value: '2', label: 'Вторник' },
+  { value: '3', label: 'Среда' },
+  { value: '4', label: 'Четверг' },
+  { value: '5', label: 'Пятница' },
+  { value: '6', label: 'Суббота' },
+  { value: '7', label: 'Воскресенье' },
+]
+
+const weekdayMap: Record<number, string> = {
+  1: 'Пн',
+  2: 'Вт',
+  3: 'Ср',
+  4: 'Чт',
+  5: 'Пт',
+  6: 'Сб',
+  7: 'Вс',
+}
+
+function getKidAge(birthdate: string) {
+  const date = new Date(birthdate)
+
+  if (Number.isNaN(date.getTime())) {
+    return null
+  }
+
+  const today = new Date()
+  let age = today.getFullYear() - date.getFullYear()
+  const monthDiff = today.getMonth() - date.getMonth()
+
+  if (
+    monthDiff < 0 ||
+    (monthDiff === 0 && today.getDate() < date.getDate())
+  ) {
+    age -= 1
+  }
+
+  return age
+}
+
+function getGenderLabel(gender: Child['gender'] | string | null) {
+  if (gender === 'girl') return 'Девочка'
+  if (gender === 'boy') return 'Мальчик'
+  if (gender === 'other') return 'Другое'
+  return 'Не указано'
+}
+
+function getSessionText(activity: Activity) {
+  if (!activity.sessions || activity.sessions.length === 0) {
+    return 'Расписание уточняется'
+  }
+
+  return activity.sessions
+    .map((session) => {
+      const day = weekdayMap[session.weekday] || `День ${session.weekday}`
+      return `${day}, ${session.start_time.slice(0, 5)}–${session.end_time.slice(0, 5)}`
+    })
+    .join(', ')
+}
+
+function isTimeInPeriod(time: string, period: TimeOfDay) {
+  if (!period) return true
+
+  const hour = Number(time.slice(0, 2))
+
+  if (period === 'morning') return hour >= 6 && hour < 12
+  if (period === 'day') return hour >= 12 && hour < 17
+  if (period === 'evening') return hour >= 17 && hour < 23
+
+  return true
+}
+
+function hasActivityConflict(activityA?: Activity, activityB?: Activity) {
+  if (!activityA?.sessions?.length || !activityB?.sessions?.length) {
+    return false
+  }
+
+  return activityA.sessions.some((sessionA) =>
+    activityB.sessions?.some((sessionB) => {
+      if (sessionA.weekday !== sessionB.weekday) return false
+
+      return (
+        sessionA.start_time < sessionB.end_time &&
+        sessionA.end_time > sessionB.start_time
+      )
+    })
+  )
 }
 
 function ParentDashboardPage() {
@@ -62,19 +163,27 @@ function ParentDashboardPage() {
 
   const [isAddingKid, setIsAddingKid] = useState(false)
   const [kidSubmitting, setKidSubmitting] = useState(false)
+  const [editingKidId, setEditingKidId] = useState<number | null>(null)
 
-  const [newKid, setNewKid] = useState({
+  const emptyKidForm: KidForm = {
     name: '',
     birthdate: '',
     gender: '',
     photo_url: '',
-  })
+  }
+
+  const [newKid, setNewKid] = useState<KidForm>(emptyKidForm)
+  const [editKid, setEditKid] = useState<KidForm>(emptyKidForm)
 
   const [filters, setFilters] = useState({
     text: '',
     city: '',
     age: '',
     category: '',
+    minPrice: '',
+    maxPrice: '',
+    weekday: '',
+    timeOfDay: '' as TimeOfDay,
   })
 
   const [activities, setActivities] = useState<Activity[]>([])
@@ -82,12 +191,47 @@ function ParentDashboardPage() {
 
   const [enrollments, setEnrollments] = useState<Enrollment[]>([])
   const [enrollmentsLoading, setEnrollmentsLoading] = useState(false)
+  const [selectedChildByActivity, setSelectedChildByActivity] = useState<Record<number, string>>({})
+  const [enrollmentSubmittingId, setEnrollmentSubmittingId] = useState<number | null>(null)
 
   const userName =
     auth?.user?.name ||
     auth?.user?.parent_name ||
     profile.full_name ||
     'Родитель'
+
+  const activeEnrollments = enrollments.filter(
+    (item) => item.status === 'pending' || item.status === 'approved'
+  )
+
+  const filteredActivities = useMemo(() => {
+    return activities.filter((activity) => {
+      const minPrice = filters.minPrice ? Number(filters.minPrice) : null
+      const maxPrice = filters.maxPrice ? Number(filters.maxPrice) : null
+
+      if (minPrice !== null && activity.price < minPrice) return false
+      if (maxPrice !== null && activity.price > maxPrice) return false
+
+      if (filters.weekday) {
+        const weekday = Number(filters.weekday)
+        const hasDay = activity.sessions?.some((session) => session.weekday === weekday)
+        if (!hasDay) return false
+      }
+
+      if (filters.timeOfDay) {
+        const hasTime = activity.sessions?.some((session) =>
+          isTimeInPeriod(session.start_time, filters.timeOfDay)
+        )
+        if (!hasTime) return false
+      }
+
+      return true
+    })
+  }, [activities, filters.minPrice, filters.maxPrice, filters.weekday, filters.timeOfDay])
+
+  const nextLessons = useMemo(() => {
+    return activeEnrollments.slice(0, 4)
+  }, [activeEnrollments])
 
   useEffect(() => {
     if (typeof userId !== 'number' || !isParent) {
@@ -123,6 +267,11 @@ function ParentDashboardPage() {
           preferred_contact: data.preferred_contact || null,
           notifications_enabled: data.notifications_enabled ?? true,
         })
+
+        setFilters((prev) => ({
+          ...prev,
+          city: prev.city || data.city || '',
+        }))
       } catch (error) {
         console.error(error)
       } finally {
@@ -132,6 +281,16 @@ function ParentDashboardPage() {
 
     loadProfile()
   }, [userId, isParent])
+
+  async function reloadChildren(safeUserId: number) {
+    const data = await getChildren(safeUserId)
+    setKids(data)
+  }
+
+  async function reloadEnrollments(safeUserId: number) {
+    const data = await getEnrollments(safeUserId)
+    setEnrollments(data)
+  }
 
   useEffect(() => {
     if (typeof userId !== 'number' || !isParent) {
@@ -144,8 +303,7 @@ function ParentDashboardPage() {
     async function loadChildren() {
       try {
         setKidsLoading(true)
-        const data = await getChildren(safeUserId)
-        setKids(data)
+        await reloadChildren(safeUserId)
       } catch (error) {
         console.error(error)
         setKids([])
@@ -179,7 +337,7 @@ function ParentDashboardPage() {
     }
 
     loadActivities()
-  }, [filters])
+  }, [filters.city, filters.age, filters.category, filters.text])
 
   useEffect(() => {
     if (typeof userId !== 'number' || !isParent) {
@@ -192,8 +350,7 @@ function ParentDashboardPage() {
     async function loadEnrollments() {
       try {
         setEnrollmentsLoading(true)
-        const data = await getEnrollments(safeUserId)
-        setEnrollments(data)
+        await reloadEnrollments(safeUserId)
       } catch (error) {
         console.error(error)
         setEnrollments([])
@@ -227,6 +384,17 @@ function ParentDashboardPage() {
     }))
   }
 
+  function handleEditKidChange(
+    e: ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) {
+    const { name, value } = e.target
+
+    setEditKid((prev) => ({
+      ...prev,
+      [name]: value,
+    }))
+  }
+
   async function handleAddKid() {
     if (typeof userId !== 'number') {
       showToast('Пользователь не найден', { type: 'error' })
@@ -255,14 +423,7 @@ function ParentDashboardPage() {
       })
 
       setKids((prev) => [createdChild, ...prev])
-
-      setNewKid({
-        name: '',
-        birthdate: '',
-        gender: '',
-        photo_url: '',
-      })
-
+      setNewKid(emptyKidForm)
       setIsAddingKid(false)
       showToast('Ребёнок добавлен', { type: 'success' })
     } catch (error) {
@@ -276,7 +437,60 @@ function ParentDashboardPage() {
     }
   }
 
+  function startEditKid(kid: Child) {
+    setEditingKidId(kid.id)
+    setEditKid({
+      name: kid.name,
+      birthdate: kid.birthdate,
+      gender: kid.gender || '',
+      photo_url: kid.photo_url || '',
+    })
+  }
+
+  async function handleUpdateKid() {
+    if (editingKidId === null) return
+
+    if (!editKid.name.trim()) {
+      showToast('Введите имя ребёнка', { type: 'error' })
+      return
+    }
+
+    if (!editKid.birthdate.trim()) {
+      showToast('Введите дату рождения', { type: 'error' })
+      return
+    }
+
+    try {
+      setKidSubmitting(true)
+
+      const updatedKid = await updateChild(editingKidId, {
+        name: editKid.name.trim(),
+        birthdate: editKid.birthdate,
+        gender: editKid.gender || null,
+        photo_url: editKid.photo_url.trim() || null,
+      })
+
+      setKids((prev) =>
+        prev.map((kid) => (kid.id === editingKidId ? updatedKid : kid))
+      )
+      setEditingKidId(null)
+      setEditKid(emptyKidForm)
+      showToast('Данные ребёнка обновлены', { type: 'success' })
+    } catch (error) {
+      console.error(error)
+      showToast(
+        error instanceof Error ? error.message : 'Не удалось обновить ребёнка',
+        { type: 'error' }
+      )
+    } finally {
+      setKidSubmitting(false)
+    }
+  }
+
   async function handleDeleteKid(id: number) {
+    const isConfirmed = window.confirm('Удалить ребёнка и все его записи?')
+    if (!isConfirmed) return
+
     try {
       await deleteChild(id)
 
@@ -342,6 +556,69 @@ function ParentDashboardPage() {
     }
   }
 
+  async function handleEnroll(activity: Activity) {
+    if (typeof userId !== 'number') {
+      showToast('Пользователь не найден', { type: 'error' })
+      return
+    }
+
+    const selectedChildId = Number(selectedChildByActivity[activity.id])
+
+    if (!selectedChildId) {
+      showToast('Выберите ребёнка для записи', { type: 'error' })
+      return
+    }
+
+    const selectedKid = kids.find((kid) => kid.id === selectedChildId)
+    const age = selectedKid ? getKidAge(selectedKid.birthdate) : null
+
+    if (age !== null && (age < activity.age_min || age > activity.age_max)) {
+      const isConfirmed = window.confirm(
+        `Возраст ребёнка не подходит под ограничения кружка (${activity.age_min}–${activity.age_max}). Всё равно отправить заявку?`
+      )
+
+      if (!isConfirmed) return
+    }
+
+    const childEnrollments = activeEnrollments.filter(
+      (item) => item.child_id === selectedChildId
+    )
+
+    const conflict = childEnrollments.find((item) => {
+      const existingActivity = activities.find(
+        (activityItem) => activityItem.id === item.activity_id
+      )
+      return hasActivityConflict(activity, existingActivity)
+    })
+
+    if (conflict) {
+      const isConfirmed = window.confirm(
+        `Выбранный кружок может пересекаться с другим занятием ребёнка: ${conflict.title}. Всё равно записать?`
+      )
+
+      if (!isConfirmed) return
+    }
+
+    try {
+      setEnrollmentSubmittingId(activity.id)
+      await createEnrollment({
+        child_id: selectedChildId,
+        activity_id: activity.id,
+      })
+
+      await reloadEnrollments(userId)
+      showToast('Заявка на запись отправлена', { type: 'success' })
+    } catch (error) {
+      console.error(error)
+      showToast(
+        error instanceof Error ? error.message : 'Не удалось записать ребёнка',
+        { type: 'error' }
+      )
+    } finally {
+      setEnrollmentSubmittingId(null)
+    }
+  }
+
   async function handleUnenroll(enrollmentId: number) {
     try {
       await deleteEnrollment(enrollmentId)
@@ -386,6 +663,51 @@ function ParentDashboardPage() {
 
       <main className="page-parent">
         <PageContainer>
+          <div className="section-header">
+            <h1 className="section-title">Кабинет родителя</h1>
+            <p className="section-subtitle">Добро пожаловать, {userName}</p>
+          </div>
+
+          <div className="stats-grid" style={{ marginBottom: '24px' }}>
+            <div className="stat-card">
+              <b>{kids.length}</b>
+              <span>детей в профиле</span>
+            </div>
+
+            <div className="stat-card">
+              <b>{activeEnrollments.length}</b>
+              <span>активных записей</span>
+            </div>
+
+            <div className="stat-card">
+              <b>{nextLessons.length}</b>
+              <span>ближайших занятий</span>
+            </div>
+          </div>
+
+          {nextLessons.length > 0 && (
+            <div className="reminders-card" style={{ marginBottom: '24px' }}>
+              <h3>Ближайшие занятия</h3>
+              <div style={{ display: 'grid', gap: '8px', marginTop: '12px' }}>
+                {nextLessons.map((item) => {
+                  const activity = activities.find(
+                    (activityItem) => activityItem.id === item.activity_id
+                  )
+
+                  return (
+                    <div key={item.id} className="feature-card">
+                      <b>{item.title}</b>
+                      <p>
+                        {item.child_name} · {item.center_name}
+                      </p>
+                      <p>{activity ? getSessionText(activity) : 'Расписание уточняется'}</p>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
           <div className="parent-layout">
             <aside className="parent-sidebar">
               <button
@@ -430,7 +752,7 @@ function ParentDashboardPage() {
                   <div className="section-header">
                     <h1 className="section-title">Найти занятия</h1>
                     <p className="section-subtitle">
-                      Посмотрите доступные кружки и уточните поиск через фильтры.
+                      Посмотрите доступные кружки и запишите ребёнка.
                     </p>
                   </div>
 
@@ -489,24 +811,79 @@ function ParentDashboardPage() {
                           <option value="языки">Языки</option>
                         </select>
                       </div>
+
+                      <div className="filter-group">
+                        <label className="filter-label">Цена от</label>
+                        <input
+                          className="filter-input"
+                          type="number"
+                          name="minPrice"
+                          placeholder="0"
+                          value={filters.minPrice}
+                          onChange={handleFilterChange}
+                        />
+                      </div>
+
+                      <div className="filter-group">
+                        <label className="filter-label">Цена до</label>
+                        <input
+                          className="filter-input"
+                          type="number"
+                          name="maxPrice"
+                          placeholder="5000"
+                          value={filters.maxPrice}
+                          onChange={handleFilterChange}
+                        />
+                      </div>
+
+                      <div className="filter-group">
+                        <label className="filter-label">День недели</label>
+                        <select
+                          className="filter-select"
+                          name="weekday"
+                          value={filters.weekday}
+                          onChange={handleFilterChange}
+                        >
+                          {weekdays.map((day) => (
+                            <option key={day.value} value={day.value}>
+                              {day.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="filter-group">
+                        <label className="filter-label">Время</label>
+                        <select
+                          className="filter-select"
+                          name="timeOfDay"
+                          value={filters.timeOfDay}
+                          onChange={handleFilterChange}
+                        >
+                          <option value="">Любое</option>
+                          <option value="morning">Утро</option>
+                          <option value="day">День</option>
+                          <option value="evening">Вечер</option>
+                        </select>
+                      </div>
                     </aside>
 
                     <section>
                       <div className="search-header-line">
                         <div>
                           <h2>Доступные занятия</h2>
-                          <p>Найдено: {activities.length}</p>
+                          <p>Найдено: {filteredActivities.length}</p>
                         </div>
                       </div>
 
                       {activitiesLoading && <p>Загрузка кружков...</p>}
 
                       <div className="activities-list">
-                        {!activitiesLoading && activities.length === 0 && (
+                        {!activitiesLoading && filteredActivities.length === 0 && (
                           <p>По вашему запросу ничего не найдено.</p>
                         )}
 
-                        {activities.map((activity) => (
+                        {filteredActivities.map((activity) => (
                           <article
                             key={activity.id}
                             className="feature-card"
@@ -528,6 +905,9 @@ function ParentDashboardPage() {
                             <p>
                               <b>Адрес:</b> {activity.address}
                             </p>
+                            <p>
+                              <b>Расписание:</b> {getSessionText(activity)}
+                            </p>
 
                             {activity.short_description && (
                               <p>{activity.short_description}</p>
@@ -537,13 +917,49 @@ function ParentDashboardPage() {
                               <b>Цена:</b> {activity.price} ₽
                             </p>
 
-                            <div style={{ marginTop: '12px' }}>
+                            <div
+                              style={{
+                                display: 'flex',
+                                flexWrap: 'wrap',
+                                alignItems: 'center',
+                                gap: '8px',
+                                marginTop: '12px',
+                              }}
+                            >
                               <Link
                                 to={`/activity/${activity.id}`}
-                                className="btn btn-primary btn-sm"
+                                className="btn btn-outline btn-sm"
                               >
                                 Подробнее
                               </Link>
+
+                              <select
+                                className="filter-select"
+                                value={selectedChildByActivity[activity.id] || ''}
+                                onChange={(e) =>
+                                  setSelectedChildByActivity((prev) => ({
+                                    ...prev,
+                                    [activity.id]: e.target.value,
+                                  }))
+                                }
+                              >
+                                <option value="">Выберите ребёнка</option>
+                                {kids.map((kid) => (
+                                  <option key={kid.id} value={kid.id}>
+                                    {kid.name}
+                                  </option>
+                                ))}
+                              </select>
+
+                              <button
+                                className="btn btn-primary btn-sm"
+                                onClick={() => handleEnroll(activity)}
+                                disabled={enrollmentSubmittingId === activity.id}
+                              >
+                                {enrollmentSubmittingId === activity.id
+                                  ? 'Отправляем...'
+                                  : 'Записать'}
+                              </button>
                             </div>
                           </article>
                         ))}
@@ -573,25 +989,152 @@ function ParentDashboardPage() {
                       <p>Пока нет добавленных детей</p>
                     )}
 
-                    {kids.map((kid) => (
-                      <div
-                        key={kid.id}
-                        className="feature-card"
-                        style={{ marginBottom: '8px' }}
-                      >
-                        <b>{kid.name}</b>
+                    {kids.map((kid) => {
+                      const age = getKidAge(kid.birthdate)
+                      const isEditing = editingKidId === kid.id
 
-                        {kid.birthdate && <p>Дата рождения: {kid.birthdate}</p>}
-                        {kid.gender && <p>Пол: {kid.gender}</p>}
-
-                        <button
-                          className="btn btn-outline btn-sm"
-                          onClick={() => handleDeleteKid(kid.id)}
+                      return (
+                        <div
+                          key={kid.id}
+                          className="feature-card"
+                          style={{ marginBottom: '12px' }}
                         >
-                          Удалить
-                        </button>
-                      </div>
-                    ))}
+                          {!isEditing && (
+                            <>
+                              <h3>{kid.name}</h3>
+                              {kid.photo_url && (
+                                <img
+                                  src={kid.photo_url}
+                                  alt={kid.name}
+                                  style={{
+                                    width: '72px',
+                                    height: '72px',
+                                    objectFit: 'cover',
+                                    borderRadius: '18px',
+                                    marginBottom: '8px',
+                                  }}
+                                />
+                              )}
+                              <p>
+                                <b>Возраст:</b>{' '}
+                                {age !== null ? `${age} лет` : 'не указан'}
+                              </p>
+                              <p>
+                                <b>Дата рождения:</b> {kid.birthdate}
+                              </p>
+                              <p>
+                                <b>Пол:</b> {getGenderLabel(kid.gender)}
+                              </p>
+
+                              <div
+                                style={{
+                                  display: 'flex',
+                                  gap: '8px',
+                                  flexWrap: 'wrap',
+                                  marginTop: '12px',
+                                }}
+                              >
+                                <button
+                                  className="btn btn-outline btn-sm"
+                                  onClick={() => startEditKid(kid)}
+                                >
+                                  Редактировать
+                                </button>
+
+                                <button
+                                  className="btn btn-outline btn-sm"
+                                  onClick={() => setActiveSection('schedule')}
+                                >
+                                  Расписание ребёнка
+                                </button>
+
+                                <button
+                                  className="btn btn-outline btn-sm"
+                                  onClick={() => setActiveSection('schedule')}
+                                >
+                                  Кружки ребёнка
+                                </button>
+
+                                <button
+                                  className="btn btn-outline btn-sm"
+                                  onClick={() => handleDeleteKid(kid.id)}
+                                >
+                                  Удалить
+                                </button>
+                              </div>
+                            </>
+                          )}
+
+                          {isEditing && (
+                            <div>
+                              <h3>Редактировать ребёнка</h3>
+
+                              <div className="auth-field">
+                                <label>Имя</label>
+                                <input
+                                  type="text"
+                                  name="name"
+                                  value={editKid.name}
+                                  onChange={handleEditKidChange}
+                                />
+                              </div>
+
+                              <div className="auth-field">
+                                <label>Дата рождения</label>
+                                <input
+                                  type="date"
+                                  name="birthdate"
+                                  value={editKid.birthdate}
+                                  onChange={handleEditKidChange}
+                                />
+                              </div>
+
+                              <div className="auth-field">
+                                <label>Пол</label>
+                                <select
+                                  name="gender"
+                                  value={editKid.gender}
+                                  onChange={handleEditKidChange}
+                                >
+                                  <option value="">Не указано</option>
+                                  <option value="girl">Девочка</option>
+                                  <option value="boy">Мальчик</option>
+                                  <option value="other">Другое</option>
+                                </select>
+                              </div>
+
+                              <div className="auth-field">
+                                <label>Фото (URL)</label>
+                                <input
+                                  type="text"
+                                  name="photo_url"
+                                  value={editKid.photo_url}
+                                  onChange={handleEditKidChange}
+                                />
+                              </div>
+
+                              <div style={{ display: 'flex', gap: '8px' }}>
+                                <button
+                                  className="btn btn-primary btn-sm"
+                                  onClick={handleUpdateKid}
+                                  disabled={kidSubmitting}
+                                >
+                                  {kidSubmitting ? 'Сохраняем...' : 'Сохранить'}
+                                </button>
+
+                                <button
+                                  className="btn btn-outline btn-sm"
+                                  onClick={() => setEditingKidId(null)}
+                                  disabled={kidSubmitting}
+                                >
+                                  Отмена
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
                   </div>
 
                   {isAddingKid && (
@@ -628,6 +1171,7 @@ function ParentDashboardPage() {
                           <option value="">Не указано</option>
                           <option value="girl">Девочка</option>
                           <option value="boy">Мальчик</option>
+                          <option value="other">Другое</option>
                         </select>
                       </div>
 
@@ -674,7 +1218,7 @@ function ParentDashboardPage() {
                   <div className="section-header">
                     <h1 className="section-title">Расписание</h1>
                     <p className="section-subtitle">
-                      Здесь отображаются занятия, на которые вы записали детей
+                      Здесь отображаются кружки, на которые записаны дети.
                     </p>
                   </div>
 
@@ -685,43 +1229,66 @@ function ParentDashboardPage() {
                       <p>Вы пока не записали детей ни на одно занятие</p>
                     )}
 
-                    {enrollments.map((item) => (
-                      <div
-                        key={item.id}
-                        className="feature-card"
-                        style={{ marginBottom: '12px' }}
-                      >
-                        <h3>{item.title}</h3>
+                    {kids.map((kid) => {
+                      const childEnrollments = enrollments.filter(
+                        (item) => item.child_id === kid.id
+                      )
 
-                        <p>
-                          <b>Ребёнок:</b> {item.child_name}
-                        </p>
-                        <p>
-                          <b>Центр:</b> {item.center_name}
-                        </p>
-                        <p>
-                          <b>Город:</b> {item.city}
-                        </p>
-                        <p>
-                          <b>Категория:</b> {item.category}
-                        </p>
-                        {item.price != null && (
-                          <p>
-                            <b>Цена:</b> {item.price} ₽
-                          </p>
-                        )}
-                        <p>
-                          <b>Статус:</b> {enrollmentStatusMap[item.status]}
-                        </p>
+                      if (childEnrollments.length === 0) return null
 
-                        <button
-                          className="btn btn-outline btn-sm"
-                          onClick={() => handleUnenroll(item.id)}
-                        >
-                          Отменить запись
-                        </button>
-                      </div>
-                    ))}
+                      return (
+                        <div key={kid.id} style={{ marginBottom: '20px' }}>
+                          <h2>{kid.name}</h2>
+
+                          {childEnrollments.map((item) => {
+                            const activity = activities.find(
+                              (activityItem) => activityItem.id === item.activity_id
+                            )
+
+                            return (
+                              <div
+                                key={item.id}
+                                className="feature-card"
+                                style={{ marginBottom: '12px' }}
+                              >
+                                <h3>{item.title}</h3>
+
+                                <p>
+                                  <b>Центр:</b> {item.center_name}
+                                </p>
+                                <p>
+                                  <b>Город:</b> {item.city}
+                                </p>
+                                <p>
+                                  <b>Категория:</b> {item.category}
+                                </p>
+                                <p>
+                                  <b>Расписание:</b>{' '}
+                                  {activity
+                                    ? getSessionText(activity)
+                                    : 'Расписание уточняется'}
+                                </p>
+                                {item.price != null && (
+                                  <p>
+                                    <b>Цена:</b> {item.price} ₽
+                                  </p>
+                                )}
+                                <p>
+                                  <b>Статус:</b> {enrollmentStatusMap[item.status]}
+                                </p>
+
+                                <button
+                                  className="btn btn-outline btn-sm"
+                                  onClick={() => handleUnenroll(item.id)}
+                                >
+                                  Отменить запись
+                                </button>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )
+                    })}
                   </div>
                 </div>
               )}
@@ -731,8 +1298,7 @@ function ParentDashboardPage() {
                   <div className="section-header">
                     <h1 className="section-title">Мой профиль</h1>
                     <p className="section-subtitle">
-                      Добро пожаловать, {userName}. Здесь можно хранить контактные
-                      данные родителя.
+                      Здесь можно хранить контактные данные родителя.
                     </p>
                   </div>
 
@@ -815,7 +1381,7 @@ function ParentDashboardPage() {
                     <ol style={{ paddingLeft: '18px', margin: 0 }}>
                       <li>Добавьте детей во вкладке «Мои дети».</li>
                       <li>Перейдите в «Найти занятия» и подберите кружок.</li>
-                      <li>Откройте карточку занятия и запишите ребёнка.</li>
+                      <li>Выберите ребёнка и нажмите «Записать».</li>
                       <li>Проверьте активные записи во вкладке «Расписание».</li>
                       <li>Заполните контактные данные во вкладке «Мой профиль».</li>
                     </ol>
