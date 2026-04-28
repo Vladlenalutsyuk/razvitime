@@ -1,5 +1,6 @@
+/*D:\Data USER\Desktop\razvitime\client\src\pages\ParentDashboardPage\ParentDashboardPage.css*/
 .page-parent {
-  padding: 42px 0 56px;
+  padding: 72px 0 56px;
 }
 
 .parent-hero {
@@ -53,45 +54,55 @@
   gap: 12px;
 }
 
+.parent-tabs-bar {
+  position: fixed;
+  top: 120px;
+  left: 280px;
+  right: 0;
+  z-index: 35;
+  background: rgba(255, 250, 243, 0.96);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--color-border-soft);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.04);
+  padding: 10px 0;
+}
+
+.parent-tabs-bar .parent-tabs {
+  margin: 0;
+}
+
 .parent-tabs {
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin: 0 0 26px;
-  padding: 8px;
-  background: rgba(255, 255, 255, 0.65);
-  border: 1px solid var(--color-border-soft);
-  border-radius: 999px;
-  width: fit-content;
-  box-shadow: var(--shadow-soft);
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  margin: 0 auto;
+  padding: 0;
 }
 
 .parent-tab-btn {
-  border: none;
+  border: 1px solid transparent;
   cursor: pointer;
   border-radius: 999px;
-  padding: 10px 18px;
-  background: transparent;
-  color: var(--color-text-muted);
+  padding: 9px 18px;
+  background: #ffffff;
+  color: var(--color-text-main);
   font-family: inherit;
   font-size: 14px;
   font-weight: 800;
-  transition:
-    background var(--transition-fast),
-    color var(--transition-fast),
-    transform var(--transition-fast),
-    box-shadow var(--transition-fast);
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.04);
 }
 
 .parent-tab-btn:hover {
   color: var(--brand-green);
+  border-color: var(--brand-green);
   background: var(--brand-green-light);
 }
 
 .parent-tab-btn.active {
   color: #ffffff;
   background: linear-gradient(135deg, var(--brand-orange), #ff7a3b);
-  box-shadow: 0 12px 24px rgba(255, 156, 85, 0.24);
+  border-color: transparent;
 }
 
 .parent-main {

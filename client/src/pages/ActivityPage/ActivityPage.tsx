@@ -1,12 +1,13 @@
+//D:\Data USER\Desktop\razvitime\client\src\pages\ActivityPage\ActivityPage.tsx
 import { useEffect, useMemo, useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import Header from '../../components/layout/Header/Header'
 import PageContainer from '../../components/layout/PageContainer/PageContainer'
 import { getAuth } from '../../utils/auth'
 import { getChildren, type Child } from '../../api/childrenApi'
 import {
   getActivityById,
-  type Activity as ActivityDetail,
+  type Activity,
   type ActivitySession,
 } from '../../api/activitiesApi'
 import {
@@ -16,6 +17,7 @@ import {
   type Enrollment,
 } from '../../api/enrollmentsApi'
 import { useToast } from '../../components/ui/ToastProvider/ToastProvider'
+import './ActivityPage.css'
 
 const weekdayMap: Record<number, string> = {
   1: 'Понедельник',
@@ -34,19 +36,19 @@ const enrollmentStatusMap: Record<Enrollment['status'], string> = {
   cancelled: 'Отменена',
 }
 
-function formatSessionTime(session: ActivitySession) {
-  return `${session.start_time}–${session.end_time}`
+function formatTime(time: string) {
+  return time.slice(0, 5)
+}
+
+function formatSession(session: ActivitySession) {
+  return `${weekdayMap[session.weekday] || `День ${session.weekday}`}, ${formatTime(
+    session.start_time
+  )}–${formatTime(session.end_time)}`
 }
 
 function formatPrice(price: number, paymentType?: string) {
-  if (paymentType === 'free') {
-    return 'Бесплатно'
-  }
-
-  if (paymentType === 'per_lesson') {
-    return `${price} ₽ за занятие`
-  }
-
+  if (paymentType === 'free') return 'Бесплатно'
+  if (paymentType === 'per_lesson') return `${price} ₽ за занятие`
   return `${price} ₽ в месяц`
 }
 
@@ -55,11 +57,11 @@ function ActivityPage() {
   const auth = getAuth()
   const { showToast } = useToast()
 
+  const activityId = Number(id)
   const userId = auth?.user?.id
   const isParent = auth?.user?.role === 'parent'
-  const activityId = Number(id)
 
-  const [activity, setActivity] = useState<ActivityDetail | null>(null)
+  const [activity, setActivity] = useState<Activity | null>(null)
   const [activityLoading, setActivityLoading] = useState(false)
 
   const [kids, setKids] = useState<Child[]>([])
@@ -69,6 +71,7 @@ function ActivityPage() {
   const [enrollmentsLoading, setEnrollmentsLoading] = useState(false)
 
   const [selectedKidId, setSelectedKidId] = useState('')
+  const [selectedSessionId, setSelectedSessionId] = useState('')
   const [actionLoading, setActionLoading] = useState(false)
 
   useEffect(() => {
@@ -82,6 +85,10 @@ function ActivityPage() {
         setActivityLoading(true)
         const data = await getActivityById(activityId)
         setActivity(data)
+
+        if (data.sessions?.length) {
+          setSelectedSessionId(String(data.sessions[0].id))
+        }
       } catch (error) {
         console.error(error)
         setActivity(null)
@@ -141,29 +148,38 @@ function ActivityPage() {
     loadEnrollments()
   }, [userId, isParent])
 
-  const currentEnrollment = useMemo(() => {
-    if (!isParent) {
-      return null
-    }
+  const activityEnrollments = useMemo(() => {
+    return enrollments.filter(
+      (item) =>
+        item.activity_id === activityId &&
+        (item.status === 'pending' || item.status === 'approved')
+    )
+  }, [enrollments, activityId])
 
-    return enrollments.find((item) => item.activity_id === activityId) || null
-  }, [enrollments, activityId, isParent])
+  const selectedKidEnrollment = useMemo(() => {
+    if (!selectedKidId) return null
 
-  const enrolledKid = useMemo(() => {
-    if (!currentEnrollment) {
-      return null
-    }
+    return (
+      activityEnrollments.find(
+        (item) => item.child_id === Number(selectedKidId)
+      ) || null
+    )
+  }, [activityEnrollments, selectedKidId])
 
-    return kids.find((kid) => kid.id === currentEnrollment.child_id) || null
-  }, [kids, currentEnrollment])
+  const selectedKid = useMemo(() => {
+    if (!selectedKidId) return null
+    return kids.find((kid) => kid.id === Number(selectedKidId)) || null
+  }, [kids, selectedKidId])
 
-  useEffect(() => {
-    if (currentEnrollment) {
-      setSelectedKidId(String(currentEnrollment.child_id))
-    } else {
-      setSelectedKidId('')
-    }
-  }, [currentEnrollment])
+  const selectedSession = useMemo(() => {
+    if (!activity || !selectedSessionId) return null
+
+    return (
+      activity.sessions?.find(
+        (session) => session.id === Number(selectedSessionId)
+      ) || null
+    )
+  }, [activity, selectedSessionId])
 
   async function handleEnroll() {
     if (!auth) {
@@ -173,7 +189,7 @@ function ActivityPage() {
       return
     }
 
-    if (auth.user.role !== 'parent') {
+    if (!isParent) {
       showToast('Запись доступна только родителю', { type: 'error' })
       return
     }
@@ -184,35 +200,37 @@ function ActivityPage() {
     }
 
     if (!selectedKidId) {
-      showToast('Сначала выберите ребёнка', { type: 'error' })
+      showToast('Выберите ребёнка', { type: 'error' })
+      return
+    }
+
+    if (activity.sessions?.length && !selectedSessionId) {
+      showToast('Выберите время занятия', { type: 'error' })
+      return
+    }
+
+    if (selectedKidEnrollment) {
+      showToast('Этот ребёнок уже записан на кружок', { type: 'info' })
       return
     }
 
     try {
       setActionLoading(true)
 
-      const data = await createEnrollment({
+      const createdEnrollment = await createEnrollment({
         child_id: Number(selectedKidId),
         activity_id: activity.id,
+        activity_session_id: selectedSessionId ? Number(selectedSessionId) : null,
         parent_comment: null,
       })
 
-      setEnrollments((prev) => [data, ...prev])
+      setEnrollments((prev) => [createdEnrollment, ...prev])
 
-      const selectedKid = kids.find((kid) => kid.id === Number(selectedKidId))
-
-      showToast(
-        selectedKid
-          ? `Вы записали ребёнка "${selectedKid.name}" на занятие`
-          : 'Запись создана',
-        { type: 'success' }
-      )
+      showToast('Заявка на запись отправлена', { type: 'success' })
     } catch (error) {
       console.error(error)
       showToast(
-        error instanceof Error
-          ? error.message
-          : 'Не удалось записать ребёнка на кружок',
+        error instanceof Error ? error.message : 'Не удалось записать ребёнка',
         { type: 'error' }
       )
     } finally {
@@ -220,21 +238,16 @@ function ActivityPage() {
     }
   }
 
-  async function handleUnenroll() {
-    if (!currentEnrollment) {
-      return
-    }
-
+  async function handleUnenroll(enrollmentId: number) {
     try {
       setActionLoading(true)
 
-      await deleteEnrollment(currentEnrollment.id)
+      await deleteEnrollment(enrollmentId)
 
       setEnrollments((prev) =>
-        prev.filter((item) => item.id !== currentEnrollment.id)
+        prev.filter((item) => item.id !== enrollmentId)
       )
 
-      setSelectedKidId('')
       showToast('Запись отменена', { type: 'success' })
     } catch (error) {
       console.error(error)
@@ -251,12 +264,10 @@ function ActivityPage() {
     return (
       <>
         <Header />
-        <main>
-          <section className="section">
-            <PageContainer>
-              <h1 className="section-title">Загрузка кружка...</h1>
-            </PageContainer>
-          </section>
+        <main className="activity-page">
+          <PageContainer>
+            <div className="activity-state-card">Загрузка занятия...</div>
+          </PageContainer>
         </main>
       </>
     )
@@ -266,18 +277,15 @@ function ActivityPage() {
     return (
       <>
         <Header />
-        <main>
-          <section className="section">
-            <PageContainer>
-              <h1 className="section-title">Занятие не найдено</h1>
-
-              <div style={{ marginTop: '16px' }}>
-                <Link to="/" className="btn btn-secondary">
-                  На главную
-                </Link>
-              </div>
-            </PageContainer>
-          </section>
+        <main className="activity-page">
+          <PageContainer>
+            <div className="activity-state-card">
+              <h1>Занятие не найдено</h1>
+              <Link to="/parent" className="btn btn-secondary">
+                Назад в кабинет
+              </Link>
+            </div>
+          </PageContainer>
         </main>
       </>
     )
@@ -287,200 +295,270 @@ function ActivityPage() {
     <>
       <Header />
 
-      <main>
-        <section className="section">
-          <PageContainer>
-            <div className="section-header">
-              <h1 className="section-title">{activity.title}</h1>
-              <p className="section-subtitle">
-                Подробная информация о занятии
-              </p>
-            </div>
-
-            <div className="feature-card">
-              <p>
-                <b>Центр:</b> {activity.center_name}
-              </p>
-              <p>
-                <b>Город:</b> {activity.city}
-              </p>
-              <p>
-                <b>Возраст:</b> {activity.age_min}–{activity.age_max}
-              </p>
-              <p>
-                <b>Категория:</b> {activity.category}
-              </p>
-              <p>
-                <b>Адрес:</b> {activity.address}
-              </p>
+      <main className="activity-page">
+        <PageContainer>
+          <div className="activity-back-row">
+            <Link to="/parent" className="btn btn-secondary btn-sm">
+              ← Назад в кабинет
+            </Link>
+          </div>
+          <section className="activity-hero-card">
+            <div>
+              <div className="activity-kicker">{activity.category}</div>
+              <h1>{activity.title}</h1>
 
               {activity.short_description && (
-                <p>
-                  <b>Кратко:</b> {activity.short_description}
+                <p className="activity-hero-text">
+                  {activity.short_description}
                 </p>
               )}
 
-              {activity.description && (
-                <p>
-                  <b>Описание:</b> {activity.description}
-                </p>
-              )}
-
-              <p>
-                <b>Цена:</b> {formatPrice(activity.price, activity.payment_type)}
-              </p>
-
-              {activity.sessions && activity.sessions.length > 0 && (
-                <div style={{ marginTop: '16px' }}>
-                  <h3 style={{ marginBottom: '8px' }}>Расписание занятий</h3>
-
-                  {activity.sessions.map((session) => (
-                    <p key={session.id}>
-                      {weekdayMap[session.weekday] ||
-                        `День ${session.weekday}`}{' '}
-                      — {formatSessionTime(session)}
-                    </p>
-                  ))}
-                </div>
-              )}
-
-              {!auth && (
-                <div
-                  className="feature-card"
-                  style={{ marginTop: '18px', background: '#faf8ff' }}
-                >
-                  <h3 style={{ marginBottom: '8px' }}>
-                    Хотите записать ребёнка?
-                  </h3>
-                  <p style={{ marginBottom: '12px' }}>
-                    Войдите как родитель, чтобы выбрать ребёнка и оформить запись
-                    на кружок.
-                  </p>
-
-                  <Link to="/login" className="btn btn-primary">
-                    Войти как родитель
-                  </Link>
-                </div>
-              )}
-
-              {auth && auth.user.role !== 'parent' && (
-                <div
-                  className="feature-card"
-                  style={{ marginTop: '18px', background: '#faf8ff' }}
-                >
-                  <h3 style={{ marginBottom: '8px' }}>
-                    Запись доступна только родителю
-                  </h3>
-                  <p>
-                    Вы можете просматривать информацию о кружке, но оформление
-                    записи доступно из аккаунта родителя.
-                  </p>
-                </div>
-              )}
-
-              {isParent && (
-                <>
-                  <div className="auth-field" style={{ marginTop: '16px' }}>
-                    <label>Выберите ребёнка</label>
-
-                    {kidsLoading ? (
-                      <p>Загрузка детей...</p>
-                    ) : (
-                      <select
-                        value={selectedKidId}
-                        onChange={(e) => setSelectedKidId(e.target.value)}
-                        disabled={
-                          !!currentEnrollment ||
-                          kids.length === 0 ||
-                          actionLoading
-                        }
-                      >
-                        <option value="">Выберите ребёнка</option>
-
-                        {kids.map((kid) => (
-                          <option key={kid.id} value={kid.id}>
-                            {kid.name}
-                          </option>
-                        ))}
-                      </select>
-                    )}
-                  </div>
-
-                  {!kidsLoading && kids.length === 0 && (
-                    <p style={{ marginTop: '12px' }}>
-                      Сначала добавьте ребёнка в кабинете родителя.
-                    </p>
-                  )}
-
-                  {enrollmentsLoading && (
-                    <p style={{ marginTop: '12px' }}>Проверяем записи...</p>
-                  )}
-
-                  {enrolledKid && (
-                    <p style={{ marginTop: '12px' }}>
-                      <b>Сейчас записан:</b> {enrolledKid.name}
-                    </p>
-                  )}
-
-                  {currentEnrollment && (
-                    <p style={{ marginTop: '12px' }}>
-                      <b>Статус записи:</b>{' '}
-                      {enrollmentStatusMap[currentEnrollment.status]}
-                    </p>
-                  )}
-
-                  <div
-                    style={{
-                      marginTop: '16px',
-                      display: 'flex',
-                      gap: '12px',
-                      flexWrap: 'wrap',
-                    }}
-                  >
-                    {!currentEnrollment ? (
-                      <button
-                        className="btn btn-primary"
-                        onClick={handleEnroll}
-                        disabled={
-                          kids.length === 0 || actionLoading || kidsLoading
-                        }
-                      >
-                        {actionLoading ? 'Сохраняем...' : 'Записаться'}
-                      </button>
-                    ) : (
-                      <button
-                        className="btn btn-outline"
-                        onClick={handleUnenroll}
-                        disabled={actionLoading}
-                      >
-                        {actionLoading ? 'Отменяем...' : 'Отменить запись'}
-                      </button>
-                    )}
-
-                    <Link to="/parent" className="btn btn-secondary">
-                      Назад в кабинет
-                    </Link>
-                  </div>
-                </>
-              )}
-
-              {!isParent && (
-                <div
-                  style={{
-                    marginTop: '16px',
-                    display: 'flex',
-                    gap: '12px',
-                    flexWrap: 'wrap',
-                  }}
-                >
-                  <Link to="/" className="btn btn-secondary">
-                    На главную
-                  </Link>
-                </div>
-              )}
+              <div className="activity-tags">
+                <span>{activity.age_min}–{activity.age_max} лет</span>
+                <span>{formatPrice(activity.price, activity.payment_type)}</span>
+                <span>{activity.city}</span>
+              </div>
             </div>
-          </PageContainer>
-        </section>
+
+            <div className="activity-price-card">
+              <span>Стоимость</span>
+              <b>{formatPrice(activity.price, activity.payment_type)}</b>
+            </div>
+          </section>
+
+          <section className="activity-layout">
+            <div className="activity-main-column">
+              <article className="activity-card">
+                <h2>Описание занятия</h2>
+                <p>
+                  {activity.description ||
+                    activity.short_description ||
+                    'Подробное описание пока не добавлено.'}
+                </p>
+              </article>
+
+              <article className="activity-card">
+                <h2>Расписание</h2>
+
+                {!activity.sessions?.length && (
+                  <p>Расписание пока уточняется.</p>
+                )}
+
+                {activity.sessions && activity.sessions.length > 0 && (
+                  <div className="activity-session-list">
+                    {activity.sessions.map((session) => (
+                      <div key={session.id} className="activity-session-card">
+                        <b>
+                          {weekdayMap[session.weekday] ||
+                            `День ${session.weekday}`}
+                        </b>
+                        <span>
+                          {formatTime(session.start_time)}–
+                          {formatTime(session.end_time)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </article>
+
+              <article className="activity-card">
+                <h2>Центр, который проводит занятие</h2>
+
+                <div className="activity-center-card">
+                  <div className="activity-center-logo">
+                    {activity.logo_url ? (
+                      <img src={activity.logo_url} alt={activity.center_name} />
+                    ) : (
+                      activity.center_name.slice(0, 1)
+                    )}
+                  </div>
+
+                  <div className="activity-center-content">
+                    <h3>{activity.center_name}</h3>
+
+                    <p>
+                      {activity.center_short_description ||
+                        'Детский развивающий центр'}
+                    </p>
+
+                    <div className="activity-center-info">
+                      <span>📍 {activity.city}, {activity.address}</span>
+
+                      {activity.phone && <span>☎ {activity.phone}</span>}
+                      {activity.email && <span>✉ {activity.email}</span>}
+                    </div>
+                    {activity.center_id && (
+                    <Link
+                      to={`/centers/${activity.center_id}`}
+                      className="btn btn-secondary btn-sm activity-center-action"
+                    >
+                      Смотреть страницу центра
+                    </Link>
+                  )}
+                  </div>
+
+                  
+                </div>
+              </article>
+            </div>
+
+            <aside className="activity-sidebar">
+              <div className="activity-enroll-card">
+                <h2>Запись на занятие</h2>
+
+                {!auth && (
+                  <>
+                    <p>
+                      Войдите как родитель, чтобы выбрать ребёнка и отправить
+                      заявку.
+                    </p>
+
+                    <Link to="/login" className="btn btn-primary">
+                      Войти
+                    </Link>
+                  </>
+                )}
+
+                {auth && !isParent && (
+                  <p>Запись доступна только из аккаунта родителя.</p>
+                )}
+
+                {isParent && (
+                  <>
+                    {kidsLoading || enrollmentsLoading ? (
+                      <p>Загрузка данных...</p>
+                    ) : (
+                      <>
+                        <div className="activity-field">
+                          <label>Ребёнок</label>
+                          <select
+                            value={selectedKidId}
+                            onChange={(e) => setSelectedKidId(e.target.value)}
+                            disabled={actionLoading}
+                          >
+                            <option value="">Выберите ребёнка</option>
+                            {kids.map((kid) => (
+                              <option key={kid.id} value={kid.id}>
+                                {kid.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        {activity.sessions && activity.sessions.length > 0 && (
+                          <div className="activity-field">
+                            <label>Время занятия</label>
+                            <select
+                              value={selectedSessionId}
+                              onChange={(e) =>
+                                setSelectedSessionId(e.target.value)
+                              }
+                              disabled={actionLoading || !!selectedKidEnrollment}
+                            >
+                              {activity.sessions.map((session) => (
+                                <option key={session.id} value={session.id}>
+                                  {formatSession(session)}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
+
+                        {selectedKidEnrollment && (
+                          <div className="activity-enrolled-box">
+                            <b>Ребёнок уже записан</b>
+                            <span>
+                              Статус:{' '}
+                              {
+                                enrollmentStatusMap[
+                                selectedKidEnrollment.status
+                                ]
+                              }
+                            </span>
+
+                            {selectedKidEnrollment.weekday &&
+                              selectedKidEnrollment.start_time &&
+                              selectedKidEnrollment.end_time && (
+                                <span>
+                                  {weekdayMap[selectedKidEnrollment.weekday]} ·{' '}
+                                  {formatTime(
+                                    selectedKidEnrollment.start_time
+                                  )}
+                                  –
+                                  {formatTime(selectedKidEnrollment.end_time)}
+                                </span>
+                              )}
+                          </div>
+                        )}
+
+                        {selectedKid && !selectedKidEnrollment && (
+                          <p className="activity-small-text">
+                            Вы записываете: <b>{selectedKid.name}</b>
+                            {selectedSession ? ` · ${formatSession(selectedSession)}` : ''}
+                          </p>
+                        )}
+
+                        <div className="activity-actions">
+                          {!selectedKidEnrollment ? (
+                            <button
+                              type="button"
+                              className="btn btn-primary"
+                              onClick={handleEnroll}
+                              disabled={
+                                actionLoading ||
+                                kids.length === 0 ||
+                                !selectedKidId
+                              }
+                            >
+                              {actionLoading ? 'Отправляем...' : 'Записаться'}
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              className="btn btn-outline"
+                              onClick={() =>
+                                handleUnenroll(selectedKidEnrollment.id)
+                              }
+                              disabled={actionLoading}
+                            >
+                              {actionLoading
+                                ? 'Отменяем...'
+                                : 'Отменить запись'}
+                            </button>
+                          )}
+
+                          <Link to="/parent" className="btn btn-secondary">
+                            В кабинет
+                          </Link>
+                        </div>
+
+                        {kids.length === 0 && (
+                          <p className="activity-small-text">
+                            Сначала добавьте ребёнка в кабинете родителя.
+                          </p>
+                        )}
+                      </>
+                    )}
+                  </>
+                )}
+
+                {activityEnrollments.length > 0 && (
+                  <div className="activity-enrolled-list">
+                    <h3>Ваши записи</h3>
+
+                    {activityEnrollments.map((item) => (
+                      <div key={item.id} className="activity-enrolled-row">
+                        <b>{item.child_name}</b>
+                        <span>{enrollmentStatusMap[item.status]}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </aside>
+          </section>
+        </PageContainer>
       </main>
     </>
   )

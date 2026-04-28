@@ -1,3 +1,4 @@
+//D:\Data USER\Desktop\razvitime\client\src\pages\ParentDashboardPage\ParentDashboardPage.tsx
 import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import Header from '../../components/layout/Header/Header'
@@ -266,6 +267,22 @@ function ParentDashboardPage() {
   const activeEnrollments = enrollments.filter(
     (item) => item.status === 'pending' || item.status === 'approved'
   )
+
+  function getActivityEnrollmentForSelectedChild(activityId: number) {
+    const selectedChildId = Number(selectedChildByActivity[activityId])
+
+    if (!selectedChildId) {
+      return null
+    }
+
+    return (
+      activeEnrollments.find(
+        (item) =>
+          item.activity_id === activityId &&
+          item.child_id === selectedChildId
+      ) || null
+    )
+  }
 
   const filteredActivities = useMemo(() => {
     return activities.filter((activity) => {
@@ -944,6 +961,7 @@ function ParentDashboardPage() {
         <Header />
 
         <main className="page-parent">
+          
           <PageContainer>
             <section className="parent-section-card">
               <div className="parent-section-header">
@@ -966,14 +984,66 @@ function ParentDashboardPage() {
       <Header />
 
       <main className="page-parent">
+         <div className="parent-tabs-bar">
+          <PageContainer>
+            <div className="parent-tabs">
+            <button
+              type="button"
+              className={`parent-tab-btn ${activeSection === 'schedule' ? 'active' : ''
+                }`}
+              onClick={() => setActiveSection('schedule')}
+            >
+              Расписание
+            </button>
+
+            <button
+              type="button"
+              className={`parent-tab-btn ${activeSection === 'search' ? 'active' : ''
+                }`}
+              onClick={() => setActiveSection('search')}
+            >
+              Найти занятия
+            </button>
+
+            <button
+              type="button"
+              className={`parent-tab-btn ${activeSection === 'kids' ? 'active' : ''
+                }`}
+              onClick={() => setActiveSection('kids')}
+            >
+              Мои дети
+            </button>
+
+            <button
+              type="button"
+              className={`parent-tab-btn ${activeSection === 'profile' ? 'active' : ''
+                }`}
+              onClick={() => setActiveSection('profile')}
+            >
+              Мой профиль
+            </button>
+
+            <button
+              type="button"
+              className={`parent-tab-btn ${activeSection === 'help' ? 'active' : ''
+                }`}
+              onClick={() => setActiveSection('help')}
+            >
+              Помощь
+            </button>
+          </div>
+          </PageContainer>
+
+           </div>
+  
+
         <PageContainer>
           <section className="parent-hero">
-            <h1 className="parent-title">Кабинет родителя</h1>
             <p className="parent-subtitle">Добро пожаловать, {userName}</p>
           </section>
 
-          {nextLessons.length > 0 && (
-            <section className="parent-card parent-next-lessons">
+       {activeSection === 'schedule' && nextLessons.length > 0 && (
+              <section className="parent-card parent-next-lessons">
               <h3>Ближайшие занятия</h3>
 
               <div className="parent-next-list">
@@ -1000,57 +1070,7 @@ function ParentDashboardPage() {
             </section>
           )}
 
-          <div className="parent-tabs">
-            <button
-              type="button"
-              className={`parent-tab-btn ${
-                activeSection === 'schedule' ? 'active' : ''
-              }`}
-              onClick={() => setActiveSection('schedule')}
-            >
-              Расписание
-            </button>
-
-            <button
-              type="button"
-              className={`parent-tab-btn ${
-                activeSection === 'search' ? 'active' : ''
-              }`}
-              onClick={() => setActiveSection('search')}
-            >
-              Найти занятия
-            </button>
-
-            <button
-              type="button"
-              className={`parent-tab-btn ${
-                activeSection === 'kids' ? 'active' : ''
-              }`}
-              onClick={() => setActiveSection('kids')}
-            >
-              Мои дети
-            </button>
-
-            <button
-              type="button"
-              className={`parent-tab-btn ${
-                activeSection === 'profile' ? 'active' : ''
-              }`}
-              onClick={() => setActiveSection('profile')}
-            >
-              Мой профиль
-            </button>
-
-            <button
-              type="button"
-              className={`parent-tab-btn ${
-                activeSection === 'help' ? 'active' : ''
-              }`}
-              onClick={() => setActiveSection('help')}
-            >
-              Помощь
-            </button>
-          </div>
+         
 
           <section className="parent-main">
             {activeSection === 'schedule' && (
@@ -1160,8 +1180,8 @@ function ParentDashboardPage() {
                         const visibleDays =
                           scheduleView === 'day'
                             ? weekdays.filter(
-                                (day) => day.value === selectedScheduleDay
-                              )
+                              (day) => day.value === selectedScheduleDay
+                            )
                             : weekdays.filter((day) => day.value)
 
                         const monthWeeks = [1, 2, 3, 4]
@@ -1331,7 +1351,7 @@ function ParentDashboardPage() {
                                                       <small>
                                                         {
                                                           enrollmentStatusMap[
-                                                            item.status
+                                                          item.status
                                                           ]
                                                         }
                                                       </small>
@@ -1618,80 +1638,93 @@ function ParentDashboardPage() {
                           <p>По вашему запросу ничего не найдено.</p>
                         )}
 
-                      {filteredActivities.map((activity) => (
-                        <article
-                          key={activity.id}
-                          className="parent-activity-card"
-                        >
-                          <h3>{activity.title}</h3>
+                     {filteredActivities.map((activity) => {
+  const selectedEnrollment =
+    getActivityEnrollmentForSelectedChild(activity.id)
 
-                          <p>
-                            <b>Центр:</b> {activity.center_name}
-                          </p>
-                          <p>
-                            <b>Город:</b> {activity.city}
-                          </p>
-                          <p>
-                            <b>Возраст:</b> {activity.age_min}–
-                            {activity.age_max}
-                          </p>
-                          <p>
-                            <b>Категория:</b> {activity.category}
-                          </p>
-                          <p>
-                            <b>Адрес:</b> {activity.address}
-                          </p>
-                          <p>
-                            <b>Расписание:</b> {getSessionText(activity)}
-                          </p>
+  return (
+    <article
+      key={activity.id}
+      className="parent-activity-card"
+    >
+      <h3>{activity.title}</h3>
 
-                          {activity.short_description && (
-                            <p>{activity.short_description}</p>
-                          )}
+      <p>
+        <b>Центр:</b>{' '}
+        {activity.center_id ? (
+          <Link to={`/centers/${activity.center_id}`}>
+            {activity.center_name}
+          </Link>
+        ) : (
+          activity.center_name
+        )}
+      </p>
 
-                          <p>
-                            <b>Цена:</b> {activity.price} ₽
-                          </p>
+      <p><b>Город:</b> {activity.city}</p>
+      <p><b>Возраст:</b> {activity.age_min}–{activity.age_max}</p>
+      <p><b>Категория:</b> {activity.category}</p>
+      <p><b>Адрес:</b> {activity.address}</p>
+      <p><b>Расписание:</b> {getSessionText(activity)}</p>
 
-                          <div className="parent-card-actions">
-                            <Link
-                              to={`/activity/${activity.id}`}
-                              className="btn btn-outline btn-sm"
-                            >
-                              Подробнее
-                            </Link>
+      {activity.short_description && <p>{activity.short_description}</p>}
 
-                            <select
-                              className="parent-select"
-                              value={selectedChildByActivity[activity.id] || ''}
-                              onChange={(e) =>
-                                setSelectedChildByActivity((prev) => ({
-                                  ...prev,
-                                  [activity.id]: e.target.value,
-                                }))
-                              }
-                            >
-                              <option value="">Выберите ребёнка</option>
-                              {kids.map((kid) => (
-                                <option key={kid.id} value={kid.id}>
-                                  {kid.name}
-                                </option>
-                              ))}
-                            </select>
+      <p><b>Цена:</b> {activity.price} ₽</p>
 
-                            <button
-                              type="button"
-                              className="btn btn-primary btn-sm"
-                              onClick={() => handleEnroll(activity)}
-                              disabled={enrollmentSubmittingId === activity.id}
-                            >
-                              {enrollmentSubmittingId === activity.id
-                                ? 'Отправляем...'
-                                : 'Записать'}
-                            </button>
-                          </div>
-                        </article>
-                      ))}
+      <div className="parent-card-actions">
+        <Link
+          to={`/activity/${activity.id}`}
+          className="btn btn-outline btn-sm"
+        >
+          Подробнее
+        </Link>
+
+        <select
+          className="parent-select"
+          value={selectedChildByActivity[activity.id] || ''}
+          onChange={(e) =>
+            setSelectedChildByActivity((prev) => ({
+              ...prev,
+              [activity.id]: e.target.value,
+            }))
+          }
+        >
+          <option value="">Выберите ребёнка</option>
+          {kids.map((kid) => (
+            <option key={kid.id} value={kid.id}>
+              {kid.name}
+            </option>
+          ))}
+        </select>
+
+        <button
+          type="button"
+          className={
+            selectedEnrollment
+              ? 'btn btn-secondary btn-sm'
+              : 'btn btn-primary btn-sm'
+          }
+          onClick={() => handleEnroll(activity)}
+          disabled={
+            !!selectedEnrollment ||
+            enrollmentSubmittingId === activity.id
+          }
+        >
+          {selectedEnrollment
+            ? `Уже записан: ${enrollmentStatusMap[selectedEnrollment.status]}`
+            : enrollmentSubmittingId === activity.id
+            ? 'Отправляем...'
+            : 'Записать'}
+        </button>
+
+        {selectedEnrollment && (
+          <p className="parent-enrolled-note">
+            Ребёнок уже записан на это занятие.
+          </p>
+        )}
+      </div>
+    </article>
+  )
+})}
                     </div>
                   </section>
                 </div>
@@ -1728,375 +1761,181 @@ function ParentDashboardPage() {
 
                     return (
                       <article key={kid.id} className="parent-kid-card">
-                        {!isEditing && (
-                          <>
-                            <h3>{kid.name}</h3>
+                        <h3>{kid.name}</h3>
 
-                            {kid.photo_url && (
-                              <img
-                                src={kid.photo_url}
-                                alt={kid.name}
-                                className="parent-kid-photo"
-                              />
-                            )}
+                        <p>
+                          <b>Возраст:</b>{' '}
+                          {age !== null ? `${age} лет` : 'не указан'}
+                        </p>
 
-                            <p>
-                              <b>Возраст:</b>{' '}
-                              {age !== null ? `${age} лет` : 'не указан'}
-                            </p>
-                            <p>
-                              <b>Дата рождения:</b> {kid.birthdate}
-                            </p>
-                            <p>
-                              <b>Пол:</b> {getGenderLabel(kid.gender)}
-                            </p>
+                        <div className="parent-card-actions">
+                          <button
+                            className="btn btn-outline btn-sm"
+                            onClick={() => startEditKid(kid)}
+                          >
+                            Редактировать
+                          </button>
 
-                            <div className="parent-card-actions">
-                              <button
-                                type="button"
-                                className="btn btn-outline btn-sm"
-                                onClick={() => startEditKid(kid)}
-                              >
-                                Редактировать
-                              </button>
-
-                              <button
-                                type="button"
-                                className="btn btn-outline btn-sm"
-                                onClick={() => {
-                                  setSelectedScheduleChildId(String(kid.id))
-                                  setActiveSection('schedule')
-                                }}
-                              >
-                                Расписание ребёнка
-                              </button>
-
-                              <button
-                                type="button"
-                                className="btn btn-outline btn-sm"
-                                onClick={() => {
-                                  setSelectedScheduleChildId(String(kid.id))
-                                  setScheduleMode('activities')
-                                  setActiveSection('schedule')
-                                }}
-                              >
-                                Кружки ребёнка
-                              </button>
-
-                              <button
-                                type="button"
-                                className="btn btn-outline btn-sm"
-                                onClick={() => handleDeleteKid(kid.id)}
-                              >
-                                Удалить
-                              </button>
-                            </div>
-                          </>
-                        )}
-
-                        {isEditing && (
-                          <div>
-                            <h3>Редактировать ребёнка</h3>
-
-                            <div className="parent-field">
-                              <label>Имя</label>
-                              <input
-                                className="parent-input"
-                                type="text"
-                                name="name"
-                                value={editKid.name}
-                                onChange={handleEditKidChange}
-                              />
-                            </div>
-
-                            <div className="parent-field">
-                              <label>Дата рождения</label>
-                              <input
-                                className="parent-input"
-                                type="date"
-                                name="birthdate"
-                                value={editKid.birthdate}
-                                onChange={handleEditKidChange}
-                              />
-                            </div>
-
-                            <div className="parent-field">
-                              <label>Пол</label>
-                              <select
-                                className="parent-select"
-                                name="gender"
-                                value={editKid.gender}
-                                onChange={handleEditKidChange}
-                              >
-                                <option value="">Не указано</option>
-                                <option value="girl">Девочка</option>
-                                <option value="boy">Мальчик</option>
-                                <option value="other">Другое</option>
-                              </select>
-                            </div>
-
-                            <div className="parent-field">
-                              <label>Фото URL</label>
-                              <input
-                                className="parent-input"
-                                type="text"
-                                name="photo_url"
-                                value={editKid.photo_url}
-                                onChange={handleEditKidChange}
-                              />
-                            </div>
-
-                            <div className="parent-card-actions">
-                              <button
-                                type="button"
-                                className="btn btn-primary btn-sm"
-                                onClick={handleUpdateKid}
-                                disabled={kidSubmitting}
-                              >
-                                {kidSubmitting ? 'Сохраняем...' : 'Сохранить'}
-                              </button>
-
-                              <button
-                                type="button"
-                                className="btn btn-outline btn-sm"
-                                onClick={() => setEditingKidId(null)}
-                                disabled={kidSubmitting}
-                              >
-                                Отмена
-                              </button>
-                            </div>
-                          </div>
-                        )}
+                          <button
+                            className="btn btn-outline btn-sm"
+                            onClick={() => handleDeleteKid(kid.id)}
+                          >
+                            Удалить
+                          </button>
+                        </div>
                       </article>
                     )
                   })}
                 </div>
-
-                {isAddingKid && (
-                  <div className="parent-form-card">
-                    <h3>Добавить ребёнка</h3>
-
-                    <div className="parent-field">
-                      <label>Имя</label>
-                      <input
-                        className="parent-input"
-                        type="text"
-                        name="name"
-                        value={newKid.name}
-                        onChange={handleKidChange}
-                      />
-                    </div>
-
-                    <div className="parent-field">
-                      <label>Дата рождения</label>
-                      <input
-                        className="parent-input"
-                        type="date"
-                        name="birthdate"
-                        value={newKid.birthdate}
-                        onChange={handleKidChange}
-                      />
-                    </div>
-
-                    <div className="parent-field">
-                      <label>Пол</label>
-                      <select
-                        className="parent-select"
-                        name="gender"
-                        value={newKid.gender}
-                        onChange={handleKidChange}
-                      >
-                        <option value="">Не указано</option>
-                        <option value="girl">Девочка</option>
-                        <option value="boy">Мальчик</option>
-                        <option value="other">Другое</option>
-                      </select>
-                    </div>
-
-                    <div className="parent-field">
-                      <label>Фото URL</label>
-                      <input
-                        className="parent-input"
-                        type="text"
-                        name="photo_url"
-                        value={newKid.photo_url}
-                        onChange={handleKidChange}
-                      />
-                    </div>
-
-                    <div className="parent-card-actions">
-                      <button
-                        type="button"
-                        className="btn btn-primary btn-sm"
-                        onClick={handleAddKid}
-                        disabled={kidSubmitting}
-                      >
-                        {kidSubmitting ? 'Сохраняем...' : 'Сохранить'}
-                      </button>
-
-                      <button
-                        type="button"
-                        className="btn btn-outline btn-sm"
-                        onClick={() => setIsAddingKid(false)}
-                        disabled={kidSubmitting}
-                      >
-                        Отмена
-                      </button>
-                    </div>
-                  </div>
-                )}
               </div>
             )}
 
             {activeSection === 'profile' && (
-              <div className="parent-section-card">
-                <div className="parent-section-header">
-                  <h1>Мой профиль</h1>
-                  <p>Здесь можно хранить контактные данные родителя.</p>
-                </div>
+  <div className="parent-section-card">
+    <div className="parent-section-header">
+      <h1>Мой профиль</h1>
+      <p>Здесь можно хранить контактные данные родителя.</p>
+    </div>
 
-                {profileLoading && <p>Загрузка профиля...</p>}
+    {profileLoading && <p>Загрузка профиля...</p>}
 
-                {!profileLoading && (
-                  <form
-                    className="parent-form-card"
-                    onSubmit={handleProfileSubmit}
-                  >
-                    <div className="parent-field">
-                      <label>Город</label>
-                      <input
-                        className="parent-input"
-                        type="text"
-                        name="city"
-                        value={profile.city}
-                        onChange={handleProfileChange}
-                      />
-                    </div>
+    {!profileLoading && (
+      <form className="parent-form-card" onSubmit={handleProfileSubmit}>
+        <div className="parent-field">
+          <label>Город</label>
+          <input
+            className="parent-input"
+            type="text"
+            name="city"
+            value={profile.city}
+            onChange={handleProfileChange}
+          />
+        </div>
 
-                    <div className="parent-field">
-                      <label>Telegram</label>
-                      <input
-                        className="parent-input"
-                        type="text"
-                        name="telegram"
-                        value={profile.telegram}
-                        onChange={handleProfileChange}
-                      />
-                    </div>
+        <div className="parent-field">
+          <label>Telegram</label>
+          <input
+            className="parent-input"
+            type="text"
+            name="telegram"
+            value={profile.telegram}
+            onChange={handleProfileChange}
+          />
+        </div>
 
-                    <div className="parent-field">
-                      <label>WhatsApp</label>
-                      <input
-                        className="parent-input"
-                        type="text"
-                        name="whatsapp"
-                        value={profile.whatsapp}
-                        onChange={handleProfileChange}
-                      />
-                    </div>
+        <div className="parent-field">
+          <label>WhatsApp</label>
+          <input
+            className="parent-input"
+            type="text"
+            name="whatsapp"
+            value={profile.whatsapp}
+            onChange={handleProfileChange}
+          />
+        </div>
 
-                    <div className="parent-field">
-                      <label>Email</label>
-                      <input
-                        className="parent-input"
-                        type="email"
-                        name="email"
-                        value={profile.email}
-                        onChange={handleProfileChange}
-                      />
-                    </div>
+        <div className="parent-field">
+          <label>Email</label>
+          <input
+            className="parent-input"
+            type="email"
+            name="email"
+            value={profile.email}
+            onChange={handleProfileChange}
+          />
+        </div>
 
-                    <div className="parent-field">
-                      <label>Аватар URL</label>
-                      <input
-                        className="parent-input"
-                        type="text"
-                        name="avatar_url"
-                        value={profile.avatar_url}
-                        onChange={handleProfileChange}
-                      />
-                    </div>
+        <div className="parent-field">
+          <label>Аватар URL</label>
+          <input
+            className="parent-input"
+            type="text"
+            name="avatar_url"
+            value={profile.avatar_url}
+            onChange={handleProfileChange}
+          />
+        </div>
 
-                    <button
-                      type="submit"
-                      className="btn btn-primary btn-sm"
-                      disabled={profileSaving}
-                    >
-                      {profileSaving ? 'Сохраняем...' : 'Сохранить профиль'}
-                    </button>
-                  </form>
-                )}
-              </div>
-            )}
+        <button
+          type="submit"
+          className="btn btn-primary btn-sm"
+          disabled={profileSaving}
+        >
+          {profileSaving ? 'Сохраняем...' : 'Сохранить профиль'}
+        </button>
+      </form>
+    )}
+  </div>
+)}
 
             {activeSection === 'help' && (
-              <div className="parent-section-card">
-                <div className="parent-section-header">
-                  <h1>Помощь</h1>
-                  <p>Короткая инструкция и контакты поддержки.</p>
-                </div>
+  <div className="parent-section-card">
+    <div className="parent-section-header">
+      <h1>Помощь</h1>
+      <p>Короткая инструкция и контакты поддержки.</p>
+    </div>
 
-                <div className="parent-help-grid">
-                  <div className="parent-card">
-                    <h3>Как пользоваться кабинетом</h3>
+    <div className="parent-help-grid">
+      <div className="parent-card">
+        <h3>Как пользоваться кабинетом</h3>
 
-                    <ol className="parent-help-list">
-                      <li>Сначала откройте вкладку «Расписание».</li>
-                      <li>Выберите ребёнка и добавьте школьные уроки.</li>
-                      <li>Перейдите в «Найти занятия» и подберите кружок.</li>
-                      <li>Выберите ребёнка и нажмите «Записать».</li>
-                      <li>
-                        Если кружок пересекается со школой или другим кружком,
-                        система покажет предупреждение.
-                      </li>
-                      <li>Расписание можно экспортировать в текстовый файл.</li>
-                    </ol>
-                  </div>
+        <ol className="parent-help-list">
+          <li>Сначала откройте вкладку «Расписание».</li>
+          <li>Выберите ребёнка и добавьте школьные уроки.</li>
+          <li>Перейдите в «Найти занятия» и подберите кружок.</li>
+          <li>Выберите ребёнка и нажмите «Записать».</li>
+          <li>
+            Если кружок пересекается со школой или другим кружком,
+            система покажет предупреждение.
+          </li>
+          <li>Расписание можно экспортировать в текстовый файл.</li>
+        </ol>
+      </div>
 
-                  <div className="parent-support-card">
-                    <div>
-                      <div className="support-kicker">📩 Поддержка и связь</div>
-                      <h2>Нужна помощь?</h2>
-                      <p>
-                        Напишите нам — поможем разобраться с расписанием,
-                        записью на кружки и личным кабинетом.
-                      </p>
-                    </div>
+      <div className="parent-support-card">
+        <div>
+          <div className="support-kicker">📩 Поддержка и связь</div>
+          <h2>Нужна помощь?</h2>
+          <p>
+            Напишите нам — поможем разобраться с расписанием,
+            записью на кружки и личным кабинетом.
+          </p>
+        </div>
 
-                    <div className="support-contacts">
-                      <a
-                        href="https://vk.com/id535966949"
-                        className="support-contact-link"
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        <span className="support-contact-icon">VK</span>
-                        <span>ВКонтакте</span>
-                      </a>
+        <div className="support-contacts">
+          <a
+            href="https://vk.com/id535966949"
+            className="support-contact-link"
+            target="_blank"
+            rel="noreferrer"
+          >
+            <span className="support-contact-icon">VK</span>
+            <span>ВКонтакте</span>
+          </a>
 
-                      <a
-                        href="https://t.me/vladlena_ll"
-                        className="support-contact-link"
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        <span className="support-contact-icon">TG</span>
-                        <span>Telegram</span>
-                      </a>
+          <a
+            href="https://t.me/vladlena_ll"
+            className="support-contact-link"
+            target="_blank"
+            rel="noreferrer"
+          >
+            <span className="support-contact-icon">TG</span>
+            <span>Telegram</span>
+          </a>
 
-                      <button
-                        type="button"
-                        className="support-contact-link"
-                        onClick={handleCopyEmail}
-                      >
-                        <span className="support-contact-icon">@</span>
-                        <span>vladlenalutsyuk@yandex.ru</span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
+          <button
+            type="button"
+            className="support-contact-link"
+            onClick={handleCopyEmail}
+          >
+            <span className="support-contact-icon">@</span>
+            <span>vladlenalutsyuk@yandex.ru</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
           </section>
         </PageContainer>
       </main>

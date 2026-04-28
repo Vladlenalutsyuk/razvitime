@@ -2,6 +2,29 @@ const express = require('express')
 const router = express.Router()
 const db = require('../db')
 
+async function attachSessionsToActivities(activities) {
+  const activityIds = activities.map((activity) => activity.id)
+
+  if (activityIds.length === 0) {
+    return activities
+  }
+
+  const [sessions] = await db.query(
+    `
+    SELECT id, activity_id, weekday, start_time, end_time
+    FROM activity_sessions
+    WHERE activity_id IN (?)
+    ORDER BY weekday, start_time
+    `,
+    [activityIds]
+  )
+
+  return activities.map((activity) => ({
+    ...activity,
+    sessions: sessions.filter((session) => session.activity_id === activity.id),
+  }))
+}
+
 router.get('/', async (req, res) => {
   const { city, age, category, search } = req.query
 
@@ -17,10 +40,12 @@ router.get('/', async (req, res) => {
         a.description,
         a.price,
         a.payment_type,
+        a.capacity,
         c.id AS center_id,
         c.name AS center_name,
         c.city,
-        c.address
+        c.address,
+        c.logo_url
       FROM activities a
       JOIN centers c ON c.id = a.center_id
       WHERE a.is_active = 1
@@ -57,7 +82,9 @@ router.get('/', async (req, res) => {
     sql += ` ORDER BY a.created_at DESC`
 
     const [rows] = await db.query(sql, params)
-    res.json(rows)
+    const activities = await attachSessionsToActivities(rows)
+
+    res.json(activities)
   } catch (error) {
     console.error('activities get error', error)
     res.status(500).json({ error: 'Ошибка загрузки кружков' })
@@ -73,29 +100,40 @@ router.get('/:id', async (req, res) => {
 
   try {
     const [rows] = await db.query(
-      `SELECT
-         a.id,
-         a.title,
-         a.category,
-         a.age_min,
-         a.age_max,
-         a.short_description,
-         a.description,
-         a.price,
-         a.payment_type,
-         a.capacity,
-         c.id AS center_id,
-         c.name AS center_name,
-         c.city,
-         c.address,
-         c.phone,
-         c.email,
-         c.website,
-         c.logo_url
-       FROM activities a
-       JOIN centers c ON c.id = a.center_id
-       WHERE a.id = ?
-       LIMIT 1`,
+      `
+      SELECT
+        a.id,
+        a.title,
+        a.category,
+        a.age_min,
+        a.age_max,
+        a.short_description,
+        a.description,
+        a.price,
+        a.payment_type,
+        a.capacity,
+        c.id AS center_id,
+        c.name AS center_name,
+        c.short_description AS center_short_description,
+        c.full_description AS center_full_description,
+        c.city,
+        c.address,
+        c.landmark,
+        c.phone,
+        c.email,
+        c.website,
+        c.telegram,
+        c.whatsapp,
+        c.vk,
+        c.logo_url,
+        c.photo_url
+      FROM activities a
+      JOIN centers c ON c.id = a.center_id
+      WHERE a.id = ?
+        AND a.is_active = 1
+        AND c.is_active = 1
+      LIMIT 1
+      `,
       [activityId]
     )
 
@@ -104,10 +142,12 @@ router.get('/:id', async (req, res) => {
     }
 
     const [sessions] = await db.query(
-      `SELECT id, activity_id, weekday, start_time, end_time
-       FROM activity_sessions
-       WHERE activity_id = ?
-       ORDER BY weekday, start_time`,
+      `
+      SELECT id, activity_id, weekday, start_time, end_time
+      FROM activity_sessions
+      WHERE activity_id = ?
+      ORDER BY weekday, start_time
+      `,
       [activityId]
     )
 

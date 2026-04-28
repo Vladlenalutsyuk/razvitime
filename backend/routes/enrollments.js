@@ -11,10 +11,12 @@ router.get('/', async (req, res) => {
 
   try {
     const [parentRows] = await db.query(
-      `SELECT id
-       FROM parent_profiles
-       WHERE user_id = ?
-       LIMIT 1`,
+      `
+      SELECT id
+      FROM parent_profiles
+      WHERE user_id = ?
+      LIMIT 1
+      `,
       [userId]
     )
 
@@ -25,25 +27,33 @@ router.get('/', async (req, res) => {
     const parentId = parentRows[0].id
 
     const [rows] = await db.query(
-      `SELECT
-         e.id,
-         e.status,
-         e.created_at,
-         c.id AS child_id,
-         c.name AS child_name,
-         a.id AS activity_id,
-         a.title,
-         a.category,
-         a.price,
-         ctr.name AS center_name,
-         ctr.city,
-         ctr.address
-       FROM enrollments e
-       JOIN children c ON c.id = e.child_id
-       JOIN activities a ON a.id = e.activity_id
-       JOIN centers ctr ON ctr.id = a.center_id
-       WHERE c.parent_id = ?
-       ORDER BY e.created_at DESC`,
+      `
+      SELECT
+        e.id,
+        e.status,
+        e.created_at,
+        e.child_id,
+        e.activity_id,
+        e.activity_session_id,
+        c.name AS child_name,
+        a.title,
+        a.category,
+        a.price,
+        ctr.id AS center_id,
+        ctr.name AS center_name,
+        ctr.city,
+        ctr.address,
+        s.weekday,
+        s.start_time,
+        s.end_time
+      FROM enrollments e
+      JOIN children c ON c.id = e.child_id
+      JOIN activities a ON a.id = e.activity_id
+      JOIN centers ctr ON ctr.id = a.center_id
+      LEFT JOIN activity_sessions s ON s.id = e.activity_session_id
+      WHERE c.parent_id = ?
+      ORDER BY e.created_at DESC
+      `,
       [parentId]
     )
 
@@ -55,7 +65,7 @@ router.get('/', async (req, res) => {
 })
 
 router.post('/', async (req, res) => {
-  const { child_id, activity_id, parent_comment } = req.body
+  const { child_id, activity_id, activity_session_id, parent_comment } = req.body
 
   if (!child_id || !activity_id) {
     return res.status(400).json({ error: 'Не хватает данных для записи' })
@@ -63,39 +73,79 @@ router.post('/', async (req, res) => {
 
   try {
     const [existing] = await db.query(
-      `SELECT id
-       FROM enrollments
-       WHERE child_id = ? AND activity_id = ? AND status IN ('pending', 'approved')
-       LIMIT 1`,
+      `
+      SELECT id
+      FROM enrollments
+      WHERE child_id = ?
+        AND activity_id = ?
+        AND status IN ('pending', 'approved')
+      LIMIT 1
+      `,
       [child_id, activity_id]
     )
 
     if (existing.length) {
-      return res.status(409).json({ error: 'Ребёнок уже записан на этот кружок' })
+      return res.status(409).json({
+        error: 'Ребёнок уже записан на этот кружок',
+      })
+    }
+
+    if (activity_session_id) {
+      const [sessionRows] = await db.query(
+        `
+        SELECT id
+        FROM activity_sessions
+        WHERE id = ?
+          AND activity_id = ?
+        LIMIT 1
+        `,
+        [activity_session_id, activity_id]
+      )
+
+      if (!sessionRows.length) {
+        return res.status(400).json({
+          error: 'Выбранное время не относится к этому кружку',
+        })
+      }
     }
 
     const [result] = await db.query(
-      `INSERT INTO enrollments (child_id, activity_id, status, parent_comment)
-       VALUES (?, ?, 'pending', ?)`,
-      [child_id, activity_id, parent_comment || null]
+      `
+      INSERT INTO enrollments
+      (child_id, activity_id, activity_session_id, status, parent_comment)
+      VALUES (?, ?, ?, 'pending', ?)
+      `,
+      [child_id, activity_id, activity_session_id || null, parent_comment || null]
     )
 
     const [rows] = await db.query(
-      `SELECT
-         e.id,
-         e.status,
-         e.created_at,
-         c.id AS child_id,
-         c.name AS child_name,
-         a.id AS activity_id,
-         a.title,
-         a.category,
-         ctr.name AS center_name
-       FROM enrollments e
-       JOIN children c ON c.id = e.child_id
-       JOIN activities a ON a.id = e.activity_id
-       JOIN centers ctr ON ctr.id = a.center_id
-       WHERE e.id = ?`,
+      `
+      SELECT
+        e.id,
+        e.status,
+        e.created_at,
+        e.child_id,
+        e.activity_id,
+        e.activity_session_id,
+        c.name AS child_name,
+        a.title,
+        a.category,
+        a.price,
+        ctr.id AS center_id,
+        ctr.name AS center_name,
+        ctr.city,
+        ctr.address,
+        s.weekday,
+        s.start_time,
+        s.end_time
+      FROM enrollments e
+      JOIN children c ON c.id = e.child_id
+      JOIN activities a ON a.id = e.activity_id
+      JOIN centers ctr ON ctr.id = a.center_id
+      LEFT JOIN activity_sessions s ON s.id = e.activity_session_id
+      WHERE e.id = ?
+      LIMIT 1
+      `,
       [result.insertId]
     )
 
@@ -115,8 +165,10 @@ router.delete('/:id', async (req, res) => {
 
   try {
     await db.query(
-      `DELETE FROM enrollments
-       WHERE id = ?`,
+      `
+      DELETE FROM enrollments
+      WHERE id = ?
+      `,
       [enrollmentId]
     )
 

@@ -1,3 +1,4 @@
+//D:\Data USER\Desktop\razvitime\client\src\pages\CenterDashboardPage\CenterDashboardPage.tsx
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import Header from '../../components/layout/Header/Header'
 import PageContainer from '../../components/layout/PageContainer/PageContainer'

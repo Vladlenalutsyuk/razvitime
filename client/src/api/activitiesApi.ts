@@ -19,14 +19,24 @@ export type Activity = {
   price: number
   payment_type?: string
   capacity?: number | null
+
   center_id?: number
   center_name: string
+  center_short_description?: string | null
+  center_full_description?: string | null
+
   city: string
   address: string
+  landmark?: string | null
   phone?: string | null
   email?: string | null
   website?: string | null
+  telegram?: string | null
+  whatsapp?: string | null
+  vk?: string | null
   logo_url?: string | null
+  photo_url?: string | null
+
   sessions?: ActivitySession[]
 }
 

@@ -1,3 +1,4 @@
+//D:\Data USER\Desktop\razvitime\client\src\components\layout\Header\Header.tsx
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { clearAuth, getAuth } from '../../../utils/auth'
 import './Header.css'
@@ -7,7 +8,9 @@ function Header() {
   const navigate = useNavigate()
   const location = useLocation()
 
-  const isLoginPage = location.pathname === '/login'
+  const isAuthPage =
+    location.pathname === '/login' ||
+    location.pathname === '/register'
   const userRole = auth?.user?.role
 
   const userName =
@@ -68,34 +71,38 @@ function Header() {
             </div>
           </Link>
 
-          <div className="nav-auth">
+          <div className={`nav-auth ${auth ? 'nav-auth-user' : 'nav-auth-guest'}`}>
             {!auth ? (
               <>
-                {!isLoginPage && (
-                  <button
-                    type="button"
-                    className="btn btn-secondary btn-sm"
-                    onClick={handleLoginClick}
-                  >
-                    Вход
-                  </button>
-                )}
+                {!isAuthPage && (
+                  <>
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      onClick={handleLoginClick}
+                    >
+                      Вход
+                    </button>
 
-                <Link to="/register" className="btn btn-primary btn-sm">
-                  Создать аккаунт
-                </Link>
+                    <Link to="/register" className="btn btn-primary btn-sm">
+                      Создать аккаунт
+                    </Link>
+                  </>
+                )}
               </>
             ) : (
               <>
-                <span className="header-user-name">{userName}</span>
+                <div className="nav-user-left">
+                  <span className="header-user-name">{userName}</span>
 
-                <Link to={dashboardPath} className="btn btn-primary btn-sm">
-                  Кабинет
-                </Link>
+                  <Link to={dashboardPath} className="btn btn-primary btn-sm">
+                    Кабинет
+                  </Link>
+                </div>
 
                 <button
                   type="button"
-                  className="btn btn-secondary btn-sm"
+                  className="btn btn-secondary btn-sm header-logout-btn"
                   onClick={handleLogout}
                 >
                   Выйти
