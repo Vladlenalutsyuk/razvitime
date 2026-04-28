@@ -1,5 +1,5 @@
-//D:\Data USER\Desktop\razvitime\client\src\pages\CenterDashboardPage\CenterDashboardPage.tsx
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react'
+import { Link } from 'react-router-dom'
 import Header from '../../components/layout/Header/Header'
 import PageContainer from '../../components/layout/PageContainer/PageContainer'
 import { getAuth } from '../../utils/auth'
@@ -25,14 +25,11 @@ import {
   updateCenterEnrollmentStatus,
   type CenterEnrollment,
 } from '../../api/centerEnrollmentsApi'
-import { useToast } from '../../components/ui/ToastProvider/ToastProvider'
 
-type Section =
-  | 'dashboard'
-  | 'profile'
-  | 'activities'
-  | 'enrollments'
-  | 'help'
+import { useToast } from '../../components/ui/ToastProvider/ToastProvider'
+import './CenterDashboardPage.css'
+
+type Section = 'dashboard' | 'profile' | 'activities' | 'enrollments' | 'help'
 
 type EditableSession = {
   weekday: string
@@ -59,6 +56,12 @@ const enrollmentStatusMap: Record<CenterEnrollment['status'], string> = {
   approved: 'Подтверждено',
   declined: 'Отклонено',
   cancelled: 'Отменено',
+}
+
+const paymentTypeMap: Record<EditActivityForm['payment_type'], string> = {
+  monthly: 'Ежемесячно',
+  per_lesson: 'За занятие',
+  free: 'Бесплатно',
 }
 
 const weekdayOptions = [
@@ -105,8 +108,8 @@ function buildEditForm(activity: CenterActivity): EditActivityForm {
       activity.sessions && activity.sessions.length > 0
         ? activity.sessions.map((session) => ({
             weekday: String(session.weekday),
-            start_time: session.start_time,
-            end_time: session.end_time,
+            start_time: session.start_time.slice(0, 5),
+            end_time: session.end_time.slice(0, 5),
           }))
         : [createEmptySession()],
   }
@@ -185,6 +188,52 @@ function validateActivityForm(form: {
   return null
 }
 
+function getAge(birthdate?: string) {
+  if (!birthdate) return null
+
+  const date = new Date(birthdate)
+  if (Number.isNaN(date.getTime())) return null
+
+  const today = new Date()
+  let age = today.getFullYear() - date.getFullYear()
+  const monthDiff = today.getMonth() - date.getMonth()
+
+  if (
+    monthDiff < 0 ||
+    (monthDiff === 0 && today.getDate() < date.getDate())
+  ) {
+    age -= 1
+  }
+
+  return age
+}
+
+function getSessionsText(activity: CenterActivity) {
+  if (!activity.sessions || activity.sessions.length === 0) {
+    return 'Расписание не указано'
+  }
+
+  return activity.sessions
+    .map((session) => {
+      const day = weekdayMap[session.weekday] || `День ${session.weekday}`
+
+      return `${day}, ${session.start_time.slice(0, 5)}–${session.end_time.slice(
+        0,
+        5
+      )}`
+    })
+    .join(', ')
+}
+
+function formatDate(value?: string | null) {
+  if (!value) return 'Нет данных'
+
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+
+  return date.toLocaleDateString('ru-RU')
+}
+
 function CenterDashboardPage() {
   const auth = getAuth()
   const userId = auth?.user?.id
@@ -216,20 +265,31 @@ function CenterDashboardPage() {
     capacity: '',
   })
 
-  const [newActivitySessions, setNewActivitySessions] = useState<EditableSession[]>([
-    createEmptySession(),
-  ])
+  const [newActivitySessions, setNewActivitySessions] = useState<
+    EditableSession[]
+  >([createEmptySession()])
 
   const [editingActivityId, setEditingActivityId] = useState<number | null>(null)
-  const [editActivityForm, setEditActivityForm] = useState<EditActivityForm | null>(null)
+  const [editActivityForm, setEditActivityForm] =
+    useState<EditActivityForm | null>(null)
   const [editActivitySaving, setEditActivitySaving] = useState(false)
 
   const [enrollments, setEnrollments] = useState<CenterEnrollment[]>([])
   const [enrollmentsLoading, setEnrollmentsLoading] = useState(false)
-  const [enrollmentActionLoadingId, setEnrollmentActionLoadingId] = useState<number | null>(null)
+  const [enrollmentActionLoadingId, setEnrollmentActionLoadingId] =
+    useState<number | null>(null)
 
   const [statusFilter, setStatusFilter] = useState('')
   const [activityFilter, setActivityFilter] = useState('')
+  const [dateFromFilter, setDateFromFilter] = useState('')
+  const [dateToFilter, setDateToFilter] = useState('')
+
+  const [isFirstLoginModalOpen, setIsFirstLoginModalOpen] = useState(false)
+
+  const [passwordForm, setPasswordForm] = useState({
+    password: '',
+    repeatPassword: '',
+  })
 
   const centerName =
     dashboard?.center?.name ||
@@ -237,6 +297,44 @@ function CenterDashboardPage() {
     auth?.user?.name ||
     auth?.user?.center_name ||
     'Центр'
+
+  const activityOptions = useMemo(() => {
+    return activities.map((activity) => ({
+      id: activity.id,
+      title: activity.title,
+    }))
+  }, [activities])
+
+  const filteredEnrollments = useMemo(() => {
+    return enrollments.filter((item) => {
+      const createdAt = item.created_at ? new Date(item.created_at) : null
+
+      if (dateFromFilter && createdAt) {
+        const from = new Date(dateFromFilter)
+        if (createdAt < from) return false
+      }
+
+      if (dateToFilter && createdAt) {
+        const to = new Date(dateToFilter)
+        to.setHours(23, 59, 59, 999)
+        if (createdAt > to) return false
+      }
+
+      return true
+    })
+  }, [enrollments, dateFromFilter, dateToFilter])
+
+  const latestEnrollments = useMemo(() => {
+    return [...enrollments].slice(0, 4)
+  }, [enrollments])
+
+  const pendingEnrollmentsCount = enrollments.filter(
+    (item) => item.status === 'pending'
+  ).length
+
+  const activeActivitiesCount = activities.filter(
+    (activity) => activity.is_active
+  ).length
 
   useEffect(() => {
     if (typeof userId !== 'number' || !isCenter) {
@@ -321,11 +419,13 @@ function CenterDashboardPage() {
     async function loadEnrollments() {
       try {
         setEnrollmentsLoading(true)
+
         const data = await getCenterEnrollments({
           userId: safeUserId,
           status: statusFilter || undefined,
           activityId: activityFilter || undefined,
         })
+
         setEnrollments(data)
       } catch (error) {
         console.error(error)
@@ -338,27 +438,14 @@ function CenterDashboardPage() {
     loadEnrollments()
   }, [userId, isCenter, statusFilter, activityFilter])
 
-  const activityOptions = useMemo(() => {
-    return activities.map((activity) => ({
-      id: activity.id,
-      title: activity.title,
-    }))
-  }, [activities])
-
   function handleProfileChange(
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) {
     const { name, value } = e.target
 
     setProfile((prev) => {
-      if (!prev) {
-        return prev
-      }
-
-      return {
-        ...prev,
-        [name]: value,
-      }
+      if (!prev) return prev
+      return { ...prev, [name]: value }
     })
   }
 
@@ -370,10 +457,10 @@ function CenterDashboardPage() {
       return
     }
 
+    const safeUserId = userId
+
     if (!profile.name.trim() || !profile.city.trim() || !profile.address.trim()) {
-      showToast('Заполните обязательные поля: название, город и адрес', {
-        type: 'error',
-      })
+      showToast('Заполните название, город и адрес', { type: 'error' })
       return
     }
 
@@ -381,7 +468,7 @@ function CenterDashboardPage() {
       setProfileSaving(true)
 
       const updated = await updateCenterProfile({
-        userId,
+        userId: safeUserId,
         name: profile.name.trim(),
         short_description: profile.short_description?.trim() || null,
         full_description: profile.full_description?.trim() || null,
@@ -414,14 +501,10 @@ function CenterDashboardPage() {
   }
 
   function handleNewActivityChange(
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+    e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) {
     const { name, value } = e.target
-
-    setNewActivity((prev) => ({
-      ...prev,
-      [name]: value,
-    }))
+    setNewActivity((prev) => ({ ...prev, [name]: value }))
   }
 
   function handleNewSessionChange(
@@ -436,19 +519,13 @@ function CenterDashboardPage() {
     )
   }
 
-  function handleAddNewSession() {
-    setNewActivitySessions((prev) => [...prev, createEmptySession()])
-  }
-
-  function handleRemoveNewSession(index: number) {
-    setNewActivitySessions((prev) => prev.filter((_, i) => i !== index))
-  }
-
   async function handleCreateActivity() {
     if (typeof userId !== 'number') {
       showToast('Пользователь центра не найден', { type: 'error' })
       return
     }
+
+    const safeUserId = userId
 
     const validationError = validateActivityForm({
       ...newActivity,
@@ -460,27 +537,22 @@ function CenterDashboardPage() {
       return
     }
 
-    const ageMin = Number(newActivity.age_min)
-    const ageMax = Number(newActivity.age_max)
-    const price = newActivity.price.trim() ? Number(newActivity.price) : 0
-    const capacity = newActivity.capacity.trim()
-      ? Number(newActivity.capacity)
-      : null
-
     try {
       setActivitySubmitting(true)
 
       const created = await createCenterActivity({
-        userId,
+        userId: safeUserId,
         title: newActivity.title.trim(),
         category: newActivity.category.trim(),
-        age_min: ageMin,
-        age_max: ageMax,
+        age_min: Number(newActivity.age_min),
+        age_max: Number(newActivity.age_max),
         short_description: newActivity.short_description.trim() || null,
         description: newActivity.description.trim() || null,
-        price,
+        price: newActivity.price.trim() ? Number(newActivity.price) : 0,
         payment_type: newActivity.payment_type,
-        capacity,
+        capacity: newActivity.capacity.trim()
+          ? Number(newActivity.capacity)
+          : null,
         sessions: normalizeSessions(newActivitySessions),
       })
 
@@ -501,9 +573,7 @@ function CenterDashboardPage() {
       setNewActivitySessions([createEmptySession()])
 
       setDashboard((prev) => {
-        if (!prev) {
-          return prev
-        }
+        if (!prev) return prev
 
         return {
           ...prev,
@@ -532,35 +602,24 @@ function CenterDashboardPage() {
   }
 
   function cancelEditingActivity() {
-    if (editActivitySaving) {
-      return
-    }
-
+    if (editActivitySaving) return
     setEditingActivityId(null)
     setEditActivityForm(null)
   }
 
   function handleEditActivityChange(
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+    e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) {
     const { name, value, type } = e.target as HTMLInputElement
 
     setEditActivityForm((prev) => {
-      if (!prev) {
-        return prev
-      }
+      if (!prev) return prev
 
       if (type === 'checkbox') {
-        return {
-          ...prev,
-          [name]: (e.target as HTMLInputElement).checked,
-        }
+        return { ...prev, [name]: (e.target as HTMLInputElement).checked }
       }
 
-      return {
-        ...prev,
-        [name]: value,
-      }
+      return { ...prev, [name]: value }
     })
   }
 
@@ -570,9 +629,7 @@ function CenterDashboardPage() {
     value: string
   ) {
     setEditActivityForm((prev) => {
-      if (!prev) {
-        return prev
-      }
+      if (!prev) return prev
 
       return {
         ...prev,
@@ -583,36 +640,8 @@ function CenterDashboardPage() {
     })
   }
 
-  function handleAddEditSession() {
-    setEditActivityForm((prev) => {
-      if (!prev) {
-        return prev
-      }
-
-      return {
-        ...prev,
-        sessions: [...prev.sessions, createEmptySession()],
-      }
-    })
-  }
-
-  function handleRemoveEditSession(index: number) {
-    setEditActivityForm((prev) => {
-      if (!prev) {
-        return prev
-      }
-
-      return {
-        ...prev,
-        sessions: prev.sessions.filter((_, i) => i !== index),
-      }
-    })
-  }
-
   async function handleSaveEditedActivity() {
-    if (!editActivityForm || editingActivityId == null) {
-      return
-    }
+    if (!editActivityForm || editingActivityId == null) return
 
     const validationError = validateActivityForm(editActivityForm)
 
@@ -621,28 +650,23 @@ function CenterDashboardPage() {
       return
     }
 
-    const ageMin = Number(editActivityForm.age_min)
-    const ageMax = Number(editActivityForm.age_max)
-    const price = editActivityForm.price.trim()
-      ? Number(editActivityForm.price)
-      : 0
-    const capacity = editActivityForm.capacity.trim()
-      ? Number(editActivityForm.capacity)
-      : null
-
     try {
       setEditActivitySaving(true)
 
       const updated = await updateCenterActivity(editingActivityId, {
         title: editActivityForm.title.trim(),
         category: editActivityForm.category.trim(),
-        age_min: ageMin,
-        age_max: ageMax,
+        age_min: Number(editActivityForm.age_min),
+        age_max: Number(editActivityForm.age_max),
         short_description: editActivityForm.short_description.trim() || null,
         description: editActivityForm.description.trim() || null,
-        price,
+        price: editActivityForm.price.trim()
+          ? Number(editActivityForm.price)
+          : 0,
         payment_type: editActivityForm.payment_type,
-        capacity,
+        capacity: editActivityForm.capacity.trim()
+          ? Number(editActivityForm.capacity)
+          : null,
         is_active: editActivityForm.is_active,
         sessions: normalizeSessions(editActivityForm.sessions),
       })
@@ -656,7 +680,7 @@ function CenterDashboardPage() {
       setEditingActivityId(null)
       setEditActivityForm(null)
 
-      showToast('Кружок и расписание обновлены', { type: 'success' })
+      showToast('Кружок обновлён', { type: 'success' })
     } catch (error) {
       console.error(error)
       showToast(
@@ -668,7 +692,45 @@ function CenterDashboardPage() {
     }
   }
 
+  async function handleToggleActivity(activity: CenterActivity) {
+    try {
+      const updated = await updateCenterActivity(activity.id, {
+        title: activity.title,
+        category: activity.category,
+        age_min: activity.age_min,
+        age_max: activity.age_max,
+        short_description: activity.short_description || null,
+        description: activity.description || null,
+        price: activity.price,
+        payment_type: activity.payment_type,
+        capacity: activity.capacity ?? null,
+        is_active: !activity.is_active,
+        sessions: normalizeSessions(
+          activity.sessions?.map((session) => ({
+            weekday: String(session.weekday),
+            start_time: session.start_time.slice(0, 5),
+            end_time: session.end_time.slice(0, 5),
+          })) || []
+        ),
+      })
+
+      setActivities((prev) =>
+        prev.map((item) => (item.id === activity.id ? updated : item))
+      )
+
+      showToast(updated.is_active ? 'Кружок показан' : 'Кружок скрыт', {
+        type: 'success',
+      })
+    } catch (error) {
+      console.error(error)
+      showToast('Не удалось изменить активность кружка', { type: 'error' })
+    }
+  }
+
   async function handleDeleteActivity(activityId: number) {
+    const isConfirmed = window.confirm('Удалить кружок?')
+    if (!isConfirmed) return
+
     try {
       await deleteCenterActivity(activityId)
 
@@ -678,20 +740,6 @@ function CenterDashboardPage() {
         setEditingActivityId(null)
         setEditActivityForm(null)
       }
-
-      setDashboard((prev) => {
-        if (!prev) {
-          return prev
-        }
-
-        return {
-          ...prev,
-          stats: {
-            ...prev.stats,
-            activitiesCount: Math.max(0, prev.stats.activitiesCount - 1),
-          },
-        }
-      })
 
       showToast('Кружок удалён', { type: 'success' })
     } catch (error) {
@@ -732,19 +780,39 @@ function CenterDashboardPage() {
     }
   }
 
+  function handlePasswordSubmit(e: FormEvent) {
+    e.preventDefault()
+
+    if (passwordForm.password.length < 6) {
+      showToast('Пароль должен быть минимум 6 символов', { type: 'error' })
+      return
+    }
+
+    if (passwordForm.password !== passwordForm.repeatPassword) {
+      showToast('Пароли не совпадают', { type: 'error' })
+      return
+    }
+
+    setIsFirstLoginModalOpen(false)
+    showToast('Пароль обновлён', { type: 'success' })
+  }
+
   if (!auth || !isCenter || typeof userId !== 'number') {
     return (
       <>
         <Header />
-        <main className="page-parent">
+
+        <main className="page-center">
           <PageContainer>
-            <section className="section">
-              <div className="section-header">
-                <h1 className="section-title">Кабинет центра недоступен</h1>
-                <p className="section-subtitle">
-                  Войдите под аккаунтом центра, чтобы пользоваться этим разделом.
-                </p>
+            <section className="center-section-card">
+              <div className="center-section-header">
+                <h1>Кабинет центра недоступен</h1>
+                <p>Войдите под аккаунтом центра, чтобы пользоваться разделом.</p>
               </div>
+
+              <Link to="/login" className="btn btn-primary">
+                Перейти ко входу
+              </Link>
             </section>
           </PageContainer>
         </main>
@@ -756,100 +824,162 @@ function CenterDashboardPage() {
     <>
       <Header />
 
-      <main className="page-parent">
-        <PageContainer>
-          <div className="parent-layout">
-            <aside className="parent-sidebar">
+      <main className="page-center">
+        <div className="center-tabs-bar">
+          <PageContainer>
+            <div className="center-tabs">
               <button
-                className={`tab-btn ${activeSection === 'dashboard' ? 'active' : ''}`}
+                type="button"
+                className={`center-tab-btn ${
+                  activeSection === 'dashboard' ? 'active' : ''
+                }`}
                 onClick={() => setActiveSection('dashboard')}
               >
                 Главная
               </button>
 
               <button
-                className={`tab-btn ${activeSection === 'profile' ? 'active' : ''}`}
+                type="button"
+                className={`center-tab-btn ${
+                  activeSection === 'profile' ? 'active' : ''
+                }`}
                 onClick={() => setActiveSection('profile')}
               >
                 Профиль центра
               </button>
 
               <button
-                className={`tab-btn ${activeSection === 'activities' ? 'active' : ''}`}
+                type="button"
+                className={`center-tab-btn ${
+                  activeSection === 'activities' ? 'active' : ''
+                }`}
                 onClick={() => setActiveSection('activities')}
               >
                 Мои кружки
               </button>
 
               <button
-                className={`tab-btn ${activeSection === 'enrollments' ? 'active' : ''}`}
+                type="button"
+                className={`center-tab-btn ${
+                  activeSection === 'enrollments' ? 'active' : ''
+                }`}
                 onClick={() => setActiveSection('enrollments')}
               >
                 Заявки
+                {pendingEnrollmentsCount > 0 && (
+                  <span>{pendingEnrollmentsCount}</span>
+                )}
               </button>
 
               <button
-                className={`tab-btn ${activeSection === 'help' ? 'active' : ''}`}
+                type="button"
+                className={`center-tab-btn ${
+                  activeSection === 'help' ? 'active' : ''
+                }`}
                 onClick={() => setActiveSection('help')}
               >
                 Помощь
               </button>
-            </aside>
+            </div>
+          </PageContainer>
+        </div>
 
-            <section className="parent-main">
-              {activeSection === 'dashboard' && (
-                <div>
-                  <div className="section-header">
-                    <h1 className="section-title">Кабинет центра</h1>
-                    <p className="section-subtitle">
-                      Добро пожаловать, {centerName}
-                    </p>
-                  </div>
+        <PageContainer>
+          <section className="center-hero">
+            <p className="center-subtitle">Добро пожаловать, {centerName}</p>
+          </section>
 
-                  {dashboardLoading && <p>Загрузка дашборда...</p>}
+          <section className="center-main">
+            {activeSection === 'dashboard' && (
+              <div className="center-section-card">
+                <div className="center-section-header">
+                  <h1>Кабинет центра</h1>
+                  <p>Управляйте кружками, заявками и публичной карточкой центра.</p>
+                </div>
 
-                  {!dashboardLoading && dashboard && (
-                    <div className="feature-grid">
-                      <article className="feature-card">
-                        <h3>Кружков размещено</h3>
-                        <p>{dashboard.stats.activitiesCount}</p>
+                {dashboardLoading && <p>Загрузка дашборда...</p>}
+
+                {!dashboardLoading && dashboard && (
+                  <>
+                    <div className="center-stats-grid">
+                      <article className="center-stat-card">
+                        <span>Кружков размещено</span>
+                        <b>{dashboard.stats.activitiesCount}</b>
                       </article>
 
-                      <article className="feature-card">
-                        <h3>Заявок получено</h3>
-                        <p>{dashboard.stats.enrollmentsCount}</p>
+                      <article className="center-stat-card">
+                        <span>Активных кружков</span>
+                        <b>{activeActivitiesCount}</b>
                       </article>
 
-                      <article className="feature-card">
-                        <h3>Тариф</h3>
-                        <p>{dashboard.subscription?.subscription_name || 'Нет данных'}</p>
+                      <article className="center-stat-card">
+                        <span>Заявок получено</span>
+                        <b>{dashboard.stats.enrollmentsCount}</b>
                       </article>
 
-                      <article className="feature-card">
-                        <h3>Подписка до</h3>
-                        <p>{dashboard.subscription?.end_date || 'Нет данных'}</p>
+                      <article className="center-stat-card">
+                        <span>Тариф</span>
+                        <b>{dashboard.subscription?.subscription_name || 'Нет данных'}</b>
+                      </article>
+
+                      <article className="center-stat-card">
+                        <span>Подписка до</span>
+                        <b>{formatDate(dashboard.subscription?.end_date)}</b>
                       </article>
                     </div>
-                  )}
+
+                    <div className="center-card center-latest-card">
+                      <div className="center-section-header-row">
+                        <div>
+                          <h2>Последние заявки</h2>
+                          <p>Быстрый просмотр новых записей от родителей.</p>
+                        </div>
+
+                        <button
+                          type="button"
+                          className="btn btn-outline btn-sm"
+                          onClick={() => setActiveSection('enrollments')}
+                        >
+                          Все заявки
+                        </button>
+                      </div>
+
+                      <div className="center-enrollment-list">
+                        {latestEnrollments.length === 0 && <p>Заявок пока нет.</p>}
+
+                        {latestEnrollments.map((item) => (
+                          <article key={item.id} className="center-mini-card">
+                            <b>{item.activity_title}</b>
+                            <p>
+                              {item.child_name} ·{' '}
+                              {enrollmentStatusMap[item.status]}
+                            </p>
+                            <small>{formatDate(item.created_at)}</small>
+                          </article>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
+            {activeSection === 'profile' && (
+              <div className="center-section-card">
+                <div className="center-section-header">
+                  <h1>Информация о центре</h1>
+                  <p>Эти данные показываются родителям на публичной странице.</p>
                 </div>
-              )}
 
-              {activeSection === 'profile' && (
-                <div>
-                  <div className="section-header">
-                    <h1 className="section-title">Информация о центре</h1>
-                    <p className="section-subtitle">
-                      Заполните карточку центра для родителей
-                    </p>
-                  </div>
+                {profileLoading && <p>Загрузка профиля...</p>}
 
-                  {profileLoading && <p>Загрузка профиля...</p>}
-
-                  {!profileLoading && profile && (
-                    <form className="reminders-card" onSubmit={handleProfileSubmit}>
-                      <div className="auth-field">
-                        <label>Название центра</label>
+                {!profileLoading && profile && (
+                  <form className="center-form-card" onSubmit={handleProfileSubmit}>
+                    <div className="center-form-grid">
+                      <div className="center-field">
+                        <label>Название центра *</label>
                         <input
+                          className="center-input"
                           type="text"
                           name="name"
                           value={profile.name}
@@ -857,28 +987,10 @@ function CenterDashboardPage() {
                         />
                       </div>
 
-                      <div className="auth-field">
-                        <label>Краткое описание</label>
+                      <div className="center-field">
+                        <label>Город *</label>
                         <input
-                          type="text"
-                          name="short_description"
-                          value={profile.short_description || ''}
-                          onChange={handleProfileChange}
-                        />
-                      </div>
-
-                      <div className="auth-field">
-                        <label>Полное описание</label>
-                        <textarea
-                          name="full_description"
-                          value={profile.full_description || ''}
-                          onChange={handleProfileChange}
-                        />
-                      </div>
-
-                      <div className="auth-field">
-                        <label>Город</label>
-                        <input
+                          className="center-input"
                           type="text"
                           name="city"
                           value={profile.city}
@@ -886,9 +998,31 @@ function CenterDashboardPage() {
                         />
                       </div>
 
-                      <div className="auth-field">
-                        <label>Адрес</label>
+                      <div className="center-field center-field-wide">
+                        <label>Краткое описание</label>
                         <input
+                          className="center-input"
+                          type="text"
+                          name="short_description"
+                          value={profile.short_description || ''}
+                          onChange={handleProfileChange}
+                        />
+                      </div>
+
+                      <div className="center-field center-field-wide">
+                        <label>Полное описание</label>
+                        <textarea
+                          className="center-textarea"
+                          name="full_description"
+                          value={profile.full_description || ''}
+                          onChange={handleProfileChange}
+                        />
+                      </div>
+
+                      <div className="center-field">
+                        <label>Адрес *</label>
+                        <input
+                          className="center-input"
                           type="text"
                           name="address"
                           value={profile.address}
@@ -896,9 +1030,10 @@ function CenterDashboardPage() {
                         />
                       </div>
 
-                      <div className="auth-field">
+                      <div className="center-field">
                         <label>Ориентир</label>
                         <input
+                          className="center-input"
                           type="text"
                           name="landmark"
                           value={profile.landmark || ''}
@@ -906,9 +1041,10 @@ function CenterDashboardPage() {
                         />
                       </div>
 
-                      <div className="auth-field">
+                      <div className="center-field">
                         <label>Телефон</label>
                         <input
+                          className="center-input"
                           type="text"
                           name="phone"
                           value={profile.phone || ''}
@@ -916,9 +1052,10 @@ function CenterDashboardPage() {
                         />
                       </div>
 
-                      <div className="auth-field">
+                      <div className="center-field">
                         <label>Email</label>
                         <input
+                          className="center-input"
                           type="email"
                           name="email"
                           value={profile.email || ''}
@@ -926,9 +1063,10 @@ function CenterDashboardPage() {
                         />
                       </div>
 
-                      <div className="auth-field">
+                      <div className="center-field">
                         <label>Сайт</label>
                         <input
+                          className="center-input"
                           type="text"
                           name="website"
                           value={profile.website || ''}
@@ -936,9 +1074,10 @@ function CenterDashboardPage() {
                         />
                       </div>
 
-                      <div className="auth-field">
+                      <div className="center-field">
                         <label>Telegram</label>
                         <input
+                          className="center-input"
                           type="text"
                           name="telegram"
                           value={profile.telegram || ''}
@@ -946,9 +1085,10 @@ function CenterDashboardPage() {
                         />
                       </div>
 
-                      <div className="auth-field">
+                      <div className="center-field">
                         <label>WhatsApp</label>
                         <input
+                          className="center-input"
                           type="text"
                           name="whatsapp"
                           value={profile.whatsapp || ''}
@@ -956,9 +1096,10 @@ function CenterDashboardPage() {
                         />
                       </div>
 
-                      <div className="auth-field">
+                      <div className="center-field">
                         <label>VK</label>
                         <input
+                          className="center-input"
                           type="text"
                           name="vk"
                           value={profile.vk || ''}
@@ -966,9 +1107,10 @@ function CenterDashboardPage() {
                         />
                       </div>
 
-                      <div className="auth-field">
-                        <label>Логотип (URL)</label>
+                      <div className="center-field">
+                        <label>Логотип URL</label>
                         <input
+                          className="center-input"
                           type="text"
                           name="logo_url"
                           value={profile.logo_url || ''}
@@ -976,43 +1118,47 @@ function CenterDashboardPage() {
                         />
                       </div>
 
-                      <div className="auth-field">
-                        <label>Фото центра (URL)</label>
+                      <div className="center-field">
+                        <label>Фото центра URL</label>
                         <input
+                          className="center-input"
                           type="text"
                           name="photo_url"
                           value={profile.photo_url || ''}
                           onChange={handleProfileChange}
                         />
                       </div>
+                    </div>
 
+                    <div className="center-card-actions">
                       <button
                         type="submit"
                         className="btn btn-primary btn-sm"
                         disabled={profileSaving}
                       >
-                        {profileSaving ? 'Сохраняем...' : 'Сохранить данные центра'}
+                        {profileSaving ? 'Сохраняем...' : 'Сохранить данные'}
                       </button>
-                    </form>
-                  )}
+                    </div>
+                  </form>
+                )}
+              </div>
+            )}
+
+            {activeSection === 'activities' && (
+              <div className="center-section-card">
+                <div className="center-section-header">
+                  <h1>Мои кружки</h1>
+                  <p>Добавляйте, редактируйте, скрывайте и удаляйте кружки.</p>
                 </div>
-              )}
 
-              {activeSection === 'activities' && (
-                <div>
-                  <div className="section-header">
-                    <h1 className="section-title">Мои кружки</h1>
-                    <p className="section-subtitle">
-                      Добавляйте, редактируйте и удаляйте кружки центра
-                    </p>
-                  </div>
+                <div className="center-form-card center-add-activity">
+                  <h3>Добавить кружок</h3>
 
-                  <div className="reminders-card" style={{ marginBottom: '16px' }}>
-                    <h3>Добавить кружок</h3>
-
-                    <div className="auth-field">
-                      <label>Название</label>
+                  <div className="center-form-grid">
+                    <div className="center-field">
+                      <label>Название *</label>
                       <input
+                        className="center-input"
                         type="text"
                         name="title"
                         value={newActivity.title}
@@ -1020,19 +1166,27 @@ function CenterDashboardPage() {
                       />
                     </div>
 
-                    <div className="auth-field">
-                      <label>Категория</label>
-                      <input
-                        type="text"
+                    <div className="center-field">
+                      <label>Категория *</label>
+                      <select
+                        className="center-select"
                         name="category"
                         value={newActivity.category}
                         onChange={handleNewActivityChange}
-                      />
+                      >
+                        <option value="">Выберите</option>
+                        <option value="спорт">Спорт</option>
+                        <option value="творчество">Творчество</option>
+                        <option value="IT">IT</option>
+                        <option value="языки">Языки</option>
+                        <option value="подготовка к школе">Подготовка к школе</option>
+                      </select>
                     </div>
 
-                    <div className="auth-field">
-                      <label>Возраст от</label>
+                    <div className="center-field">
+                      <label>Возраст от *</label>
                       <input
+                        className="center-input"
                         type="number"
                         name="age_min"
                         value={newActivity.age_min}
@@ -1040,9 +1194,10 @@ function CenterDashboardPage() {
                       />
                     </div>
 
-                    <div className="auth-field">
-                      <label>Возраст до</label>
+                    <div className="center-field">
+                      <label>Возраст до *</label>
                       <input
+                        className="center-input"
                         type="number"
                         name="age_max"
                         value={newActivity.age_max}
@@ -1050,9 +1205,10 @@ function CenterDashboardPage() {
                       />
                     </div>
 
-                    <div className="auth-field">
+                    <div className="center-field center-field-wide">
                       <label>Краткое описание</label>
                       <input
+                        className="center-input"
                         type="text"
                         name="short_description"
                         value={newActivity.short_description}
@@ -1060,18 +1216,20 @@ function CenterDashboardPage() {
                       />
                     </div>
 
-                    <div className="auth-field">
+                    <div className="center-field center-field-wide">
                       <label>Описание</label>
                       <textarea
+                        className="center-textarea"
                         name="description"
                         value={newActivity.description}
                         onChange={handleNewActivityChange}
                       />
                     </div>
 
-                    <div className="auth-field">
+                    <div className="center-field">
                       <label>Цена</label>
                       <input
+                        className="center-input"
                         type="number"
                         name="price"
                         value={newActivity.price}
@@ -1079,9 +1237,10 @@ function CenterDashboardPage() {
                       />
                     </div>
 
-                    <div className="auth-field">
+                    <div className="center-field">
                       <label>Тип оплаты</label>
                       <select
+                        className="center-select"
                         name="payment_type"
                         value={newActivity.payment_type}
                         onChange={handleNewActivityChange}
@@ -1092,287 +1251,432 @@ function CenterDashboardPage() {
                       </select>
                     </div>
 
-                    <div className="auth-field">
+                    <div className="center-field">
                       <label>Вместимость</label>
                       <input
+                        className="center-input"
                         type="number"
                         name="capacity"
                         value={newActivity.capacity}
                         onChange={handleNewActivityChange}
                       />
                     </div>
+                  </div>
 
-                    <div style={{ marginTop: '16px' }}>
-                      <h3 style={{ marginBottom: '12px' }}>Расписание занятий</h3>
+                  <div className="center-sessions-block">
+                    <h3>Расписание занятий</h3>
 
-                      {newActivitySessions.map((session, index) => (
-                        <div
-                          key={index}
-                          className="feature-card"
-                          style={{ marginBottom: '12px' }}
-                        >
-                          <div className="auth-field">
-                            <label>День недели</label>
-                            <select
-                              value={session.weekday}
-                              onChange={(e) =>
-                                handleNewSessionChange(index, 'weekday', e.target.value)
-                              }
-                            >
-                              {weekdayOptions.map((day) => (
-                                <option key={day.value} value={day.value}>
-                                  {day.label}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-
-                          <div className="auth-field">
-                            <label>Время начала</label>
-                            <input
-                              type="time"
-                              value={session.start_time}
-                              onChange={(e) =>
-                                handleNewSessionChange(index, 'start_time', e.target.value)
-                              }
-                            />
-                          </div>
-
-                          <div className="auth-field">
-                            <label>Время окончания</label>
-                            <input
-                              type="time"
-                              value={session.end_time}
-                              onChange={(e) =>
-                                handleNewSessionChange(index, 'end_time', e.target.value)
-                              }
-                            />
-                          </div>
-
-                          {newActivitySessions.length > 1 && (
-                            <button
-                              type="button"
-                              className="btn btn-outline btn-sm"
-                              onClick={() => handleRemoveNewSession(index)}
-                            >
-                              Удалить слот
-                            </button>
-                          )}
+                    {newActivitySessions.map((session, index) => (
+                      <div key={index} className="center-session-card">
+                        <div className="center-field">
+                          <label>День недели</label>
+                          <select
+                            className="center-select"
+                            value={session.weekday}
+                            onChange={(e) =>
+                              handleNewSessionChange(
+                                index,
+                                'weekday',
+                                e.target.value
+                              )
+                            }
+                          >
+                            {weekdayOptions.map((day) => (
+                              <option key={day.value} value={day.value}>
+                                {day.label}
+                              </option>
+                            ))}
+                          </select>
                         </div>
-                      ))}
 
-                      <button
-                        type="button"
-                        className="btn btn-secondary btn-sm"
-                        onClick={handleAddNewSession}
-                      >
-                        + Добавить ещё день
-                      </button>
-                    </div>
+                        <div className="center-field">
+                          <label>Начало</label>
+                          <input
+                            className="center-input"
+                            type="time"
+                            value={session.start_time}
+                            onChange={(e) =>
+                              handleNewSessionChange(
+                                index,
+                                'start_time',
+                                e.target.value
+                              )
+                            }
+                          />
+                        </div>
+
+                        <div className="center-field">
+                          <label>Конец</label>
+                          <input
+                            className="center-input"
+                            type="time"
+                            value={session.end_time}
+                            onChange={(e) =>
+                              handleNewSessionChange(
+                                index,
+                                'end_time',
+                                e.target.value
+                              )
+                            }
+                          />
+                        </div>
+
+                        {newActivitySessions.length > 1 && (
+                          <button
+                            type="button"
+                            className="btn btn-outline btn-sm"
+                            onClick={() =>
+                              setNewActivitySessions((prev) =>
+                                prev.filter((_, i) => i !== index)
+                              )
+                            }
+                          >
+                            Удалить слот
+                          </button>
+                        )}
+                      </div>
+                    ))}
 
                     <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      onClick={() =>
+                        setNewActivitySessions((prev) => [
+                          ...prev,
+                          createEmptySession(),
+                        ])
+                      }
+                    >
+                      + Добавить ещё день
+                    </button>
+                  </div>
+
+                  <div className="center-card-actions">
+                    <button
+                      type="button"
                       className="btn btn-primary btn-sm"
                       onClick={handleCreateActivity}
                       disabled={activitySubmitting}
-                      style={{ marginTop: '16px' }}
                     >
                       {activitySubmitting ? 'Создаём...' : 'Создать кружок'}
                     </button>
                   </div>
-
-                  {activitiesLoading && <p>Загрузка кружков...</p>}
-
-                  {!activitiesLoading && activities.length === 0 && (
-                    <p>У центра пока нет кружков</p>
-                  )}
-
-                  {activities.map((activity) => (
-                    <div
-                      key={activity.id}
-                      className="feature-card"
-                      style={{ marginBottom: '12px' }}
-                    >
-                      <h3>{activity.title}</h3>
-                      <p><b>Категория:</b> {activity.category}</p>
-                      <p><b>Возраст:</b> {activity.age_min}–{activity.age_max}</p>
-                      <p><b>Цена:</b> {activity.price} ₽</p>
-                      <p><b>Статус:</b> {activity.is_active ? 'Активен' : 'Скрыт'}</p>
-
-                      {activity.sessions && activity.sessions.length > 0 && (
-                        <div style={{ marginTop: '12px' }}>
-                          <b>Расписание:</b>
-                          <div style={{ marginTop: '8px' }}>
-                            {activity.sessions.map((session) => (
-                              <p key={session.id}>
-                                {weekdayMap[session.weekday] ||
-                                  `День ${session.weekday}`}{' '}
-                                — {session.start_time}–{session.end_time}
-                              </p>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      <div
-                        style={{
-                          display: 'flex',
-                          gap: '8px',
-                          flexWrap: 'wrap',
-                          marginTop: '12px',
-                        }}
-                      >
-                        <button
-                          className="btn btn-primary btn-sm"
-                          onClick={() => startEditingActivity(activity)}
-                        >
-                          Редактировать
-                        </button>
-
-                        <button
-                          className="btn btn-outline btn-sm"
-                          onClick={() => handleDeleteActivity(activity.id)}
-                        >
-                          Удалить
-                        </button>
-                      </div>
-                    </div>
-                  ))}
                 </div>
-              )}
 
-              {activeSection === 'enrollments' && (
-                <div>
-                  <div className="section-header">
-                    <h1 className="section-title">Заявки</h1>
-                    <p className="section-subtitle">
-                      Просмотр и обработка заявок от родителей
-                    </p>
-                  </div>
+                {activitiesLoading && <p>Загрузка кружков...</p>}
 
-                  <div className="search-layout" style={{ marginBottom: '16px' }}>
-                    <aside className="filters-card">
-                      <h3>Фильтры</h3>
+                {!activitiesLoading && activities.length === 0 && (
+                  <p>У центра пока нет кружков.</p>
+                )}
 
-                      <div className="filter-group">
-                        <label className="filter-label">Статус</label>
-                        <select
-                          className="filter-select"
-                          value={statusFilter}
-                          onChange={(e) => setStatusFilter(e.target.value)}
-                        >
-                          <option value="">Все</option>
-                          <option value="pending">Ожидание</option>
-                          <option value="approved">Подтверждено</option>
-                          <option value="declined">Отклонено</option>
-                          <option value="cancelled">Отменено</option>
-                        </select>
-                      </div>
-
-                      <div className="filter-group">
-                        <label className="filter-label">Кружок</label>
-                        <select
-                          className="filter-select"
-                          value={activityFilter}
-                          onChange={(e) => setActivityFilter(e.target.value)}
-                        >
-                          <option value="">Все</option>
-                          {activityOptions.map((activity) => (
-                            <option key={activity.id} value={activity.id}>
-                              {activity.title}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </aside>
-                  </div>
-
-                  {enrollmentsLoading && <p>Загрузка заявок...</p>}
-
-                  {!enrollmentsLoading && enrollments.length === 0 && (
-                    <p>Заявок пока нет</p>
-                  )}
-
-                  {enrollments.map((item) => {
-                    const isActionLoading = enrollmentActionLoadingId === item.id
+                <div className="center-activities-list">
+                  {activities.map((activity) => {
+                    const activityEnrollmentsCount = enrollments.filter(
+                      (item) => item.activity_id === activity.id
+                    ).length
 
                     return (
-                      <div
-                        key={item.id}
-                        className="feature-card"
-                        style={{ marginBottom: '12px' }}
-                      >
-                        <h3>{item.activity_title}</h3>
-                        <p><b>Ребёнок:</b> {item.child_name}</p>
-                        <p><b>Дата рождения:</b> {item.birthdate}</p>
-                        <p><b>Родитель:</b> {item.parent_name}</p>
-                        <p><b>Телефон:</b> {item.parent_phone || '—'}</p>
-                        <p><b>Telegram:</b> {item.parent_telegram || '—'}</p>
-                        <p><b>Email:</b> {item.parent_email || '—'}</p>
-                        <p><b>Статус:</b> {enrollmentStatusMap[item.status]}</p>
+                      <article key={activity.id} className="center-activity-card">
+                        <div className="center-activity-top">
+                          <div>
+                            <h3>{activity.title}</h3>
+                            <p>
+                              {activity.category} · {activity.age_min}–
+                              {activity.age_max} лет
+                            </p>
+                          </div>
 
-                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                          <button
-                            className="btn btn-primary btn-sm"
-                            onClick={() =>
-                              handleUpdateEnrollmentStatus(item.id, 'approved')
-                            }
-                            disabled={isActionLoading || item.status === 'approved'}
+                          <span
+                            className={`center-status ${
+                              activity.is_active ? 'active' : 'hidden'
+                            }`}
                           >
-                            {isActionLoading ? 'Сохраняем...' : 'Подтвердить'}
+                            {activity.is_active ? 'Активен' : 'Скрыт'}
+                          </span>
+                        </div>
+
+                        <div className="center-activity-info">
+                          <p>
+                            <b>Цена:</b> {activity.price} ₽ ·{' '}
+                            {paymentTypeMap[activity.payment_type]}
+                          </p>
+
+                          <p>
+                            <b>Вместимость:</b> {activity.capacity || 'Не указана'}
+                          </p>
+
+                          <p>
+                            <b>Заявок:</b> {activityEnrollmentsCount}
+                          </p>
+
+                          <p>
+                            <b>Расписание:</b> {getSessionsText(activity)}
+                          </p>
+                        </div>
+
+                        {activity.short_description && (
+                          <p className="center-muted-text">
+                            {activity.short_description}
+                          </p>
+                        )}
+
+                        <div className="center-card-actions">
+                          <button
+                            type="button"
+                            className="btn btn-primary btn-sm"
+                            onClick={() => startEditingActivity(activity)}
+                          >
+                            Редактировать
                           </button>
 
                           <button
-                            className="btn btn-outline btn-sm"
-                            onClick={() =>
-                              handleUpdateEnrollmentStatus(item.id, 'declined')
-                            }
-                            disabled={isActionLoading || item.status === 'declined'}
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => handleToggleActivity(activity)}
                           >
-                            {isActionLoading ? 'Сохраняем...' : 'Отклонить'}
+                            {activity.is_active ? 'Скрыть' : 'Показать'}
+                          </button>
+
+                          <button
+                            type="button"
+                            className="btn btn-outline btn-sm"
+                            onClick={() => handleDeleteActivity(activity.id)}
+                          >
+                            Удалить
                           </button>
                         </div>
-                      </div>
+                      </article>
                     )
                   })}
                 </div>
-              )}
+              </div>
+            )}
 
-              {activeSection === 'help' && (
-                <div>
-                  <div className="section-header">
-                    <h1 className="section-title">Помощь</h1>
-                    <p className="section-subtitle">
-                      Краткая инструкция для центра
-                    </p>
-                  </div>
+            {activeSection === 'enrollments' && (
+              <div className="center-section-card">
+                <div className="center-section-header">
+                  <h1>Заявки</h1>
+                  <p>Подтверждайте или отклоняйте записи родителей.</p>
+                </div>
 
-                  <div className="feature-card">
-                    <ol style={{ paddingLeft: '18px', margin: 0 }}>
-                      <li>Заполните информацию о центре.</li>
-                      <li>Добавьте кружки и укажите расписание.</li>
-                      <li>Редактируйте кружки через кнопку «Редактировать».</li>
+                <div className="center-enrollments-layout">
+                  <aside className="center-filters-card">
+                    <h3>Фильтры</h3>
+
+                    <div className="center-field">
+                      <label>Статус</label>
+                      <select
+                        className="center-select"
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value)}
+                      >
+                        <option value="">Все</option>
+                        <option value="pending">Ожидание</option>
+                        <option value="approved">Подтверждено</option>
+                        <option value="declined">Отклонено</option>
+                        <option value="cancelled">Отменено</option>
+                      </select>
+                    </div>
+
+                    <div className="center-field">
+                      <label>Кружок</label>
+                      <select
+                        className="center-select"
+                        value={activityFilter}
+                        onChange={(e) => setActivityFilter(e.target.value)}
+                      >
+                        <option value="">Все</option>
+                        {activityOptions.map((activity) => (
+                          <option key={activity.id} value={activity.id}>
+                            {activity.title}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="center-field">
+                      <label>Дата от</label>
+                      <input
+                        className="center-input"
+                        type="date"
+                        value={dateFromFilter}
+                        onChange={(e) => setDateFromFilter(e.target.value)}
+                      />
+                    </div>
+
+                    <div className="center-field">
+                      <label>Дата до</label>
+                      <input
+                        className="center-input"
+                        type="date"
+                        value={dateToFilter}
+                        onChange={(e) => setDateToFilter(e.target.value)}
+                      />
+                    </div>
+                  </aside>
+
+                  <section className="center-enrollment-list">
+                    {enrollmentsLoading && <p>Загрузка заявок...</p>}
+
+                    {!enrollmentsLoading && filteredEnrollments.length === 0 && (
+                      <p>Заявок пока нет.</p>
+                    )}
+
+                    {filteredEnrollments.map((item) => {
+                      const age = getAge(item.birthdate)
+                      const isActionLoading =
+                        enrollmentActionLoadingId === item.id
+
+                      return (
+                        <article key={item.id} className="center-enrollment-card">
+                          <div className="center-activity-top">
+                            <div>
+                              <h3>{item.activity_title}</h3>
+                              <p>Заявка от {formatDate(item.created_at)}</p>
+                            </div>
+
+                            <span className={`center-status ${item.status}`}>
+                              {enrollmentStatusMap[item.status]}
+                            </span>
+                          </div>
+
+                          <div className="center-enrollment-grid">
+                            <p>
+                              <b>Ребёнок:</b> {item.child_name}
+                            </p>
+
+                            <p>
+                              <b>Возраст:</b>{' '}
+                              {age !== null ? `${age} лет` : 'не указан'}
+                            </p>
+
+                            <p>
+                              <b>Дата рождения:</b> {formatDate(item.birthdate)}
+                            </p>
+
+                            <p>
+                              <b>Родитель:</b> {item.parent_name}
+                            </p>
+
+                            <p>
+                              <b>Телефон:</b> {item.parent_phone || '—'}
+                            </p>
+
+                            <p>
+                              <b>Telegram:</b> {item.parent_telegram || '—'}
+                            </p>
+
+                            <p>
+                              <b>Email:</b> {item.parent_email || '—'}
+                            </p>
+                          </div>
+
+                          <div className="center-card-actions">
+                            <button
+                              type="button"
+                              className="btn btn-primary btn-sm"
+                              onClick={() =>
+                                handleUpdateEnrollmentStatus(
+                                  item.id,
+                                  'approved'
+                                )
+                              }
+                              disabled={
+                                isActionLoading || item.status === 'approved'
+                              }
+                            >
+                              {isActionLoading ? 'Сохраняем...' : 'Подтвердить'}
+                            </button>
+
+                            <button
+                              type="button"
+                              className="btn btn-outline btn-sm"
+                              onClick={() =>
+                                handleUpdateEnrollmentStatus(item.id, 'declined')
+                              }
+                              disabled={
+                                isActionLoading || item.status === 'declined'
+                              }
+                            >
+                              {isActionLoading ? 'Сохраняем...' : 'Отклонить'}
+                            </button>
+                          </div>
+                        </article>
+                      )
+                    })}
+                  </section>
+                </div>
+              </div>
+            )}
+
+            {activeSection === 'help' && (
+              <div className="center-section-card">
+                <div className="center-section-header">
+                  <h1>Помощь</h1>
+                  <p>Короткая инструкция для центра.</p>
+                </div>
+
+                <div className="center-help-grid">
+                  <div className="center-card">
+                    <h3>Как пользоваться кабинетом</h3>
+
+                    <ol className="center-help-list">
+                      <li>Заполните профиль центра.</li>
+                      <li>Добавьте кружки и расписание занятий.</li>
                       <li>Следите за заявками во вкладке «Заявки».</li>
                       <li>Подтверждайте или отклоняйте записи родителей.</li>
+                      <li>Скрывайте кружки, если набор временно закрыт.</li>
                     </ol>
                   </div>
+
+                  <div className="center-support-card">
+                    <div className="support-kicker">📩 Поддержка</div>
+                    <h2>Нужна помощь?</h2>
+                    <p>
+                      Если что-то не получается, напишите нам — поможем с
+                      настройкой центра, кружков и заявок.
+                    </p>
+
+                    <div className="support-contacts">
+                      <a
+                        href="https://vk.com/id535966949"
+                        className="support-contact-link"
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        <span className="support-contact-icon">VK</span>
+                        <span>ВКонтакте</span>
+                      </a>
+
+                      <a
+                        href="https://t.me/vladlena_ll"
+                        className="support-contact-link"
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        <span className="support-contact-icon">TG</span>
+                        <span>Telegram</span>
+                      </a>
+                    </div>
+                  </div>
                 </div>
-              )}
-            </section>
-          </div>
+              </div>
+            )}
+          </section>
         </PageContainer>
       </main>
 
       {editingActivityId !== null && editActivityForm && (
         <div className="modal-overlay" onClick={cancelEditingActivity}>
           <div
-            className="modal-content"
+            className="modal-content center-modal"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="modal-header">
               <div>
                 <h2 className="modal-title">Редактирование кружка</h2>
                 <p className="modal-subtitle">
-                  Измените данные кружка и его расписание
+                  Измените данные кружка и расписание.
                 </p>
               </div>
 
@@ -1386,122 +1690,130 @@ function CenterDashboardPage() {
               </button>
             </div>
 
-            <div className="auth-field">
-              <label>Название</label>
-              <input
-                type="text"
-                name="title"
-                value={editActivityForm.title}
-                onChange={handleEditActivityChange}
-              />
-            </div>
-
-            <div className="auth-field">
-              <label>Категория</label>
-              <input
-                type="text"
-                name="category"
-                value={editActivityForm.category}
-                onChange={handleEditActivityChange}
-              />
-            </div>
-
-            <div className="auth-field">
-              <label>Возраст от</label>
-              <input
-                type="number"
-                name="age_min"
-                value={editActivityForm.age_min}
-                onChange={handleEditActivityChange}
-              />
-            </div>
-
-            <div className="auth-field">
-              <label>Возраст до</label>
-              <input
-                type="number"
-                name="age_max"
-                value={editActivityForm.age_max}
-                onChange={handleEditActivityChange}
-              />
-            </div>
-
-            <div className="auth-field">
-              <label>Краткое описание</label>
-              <input
-                type="text"
-                name="short_description"
-                value={editActivityForm.short_description}
-                onChange={handleEditActivityChange}
-              />
-            </div>
-
-            <div className="auth-field">
-              <label>Описание</label>
-              <textarea
-                name="description"
-                value={editActivityForm.description}
-                onChange={handleEditActivityChange}
-              />
-            </div>
-
-            <div className="auth-field">
-              <label>Цена</label>
-              <input
-                type="number"
-                name="price"
-                value={editActivityForm.price}
-                onChange={handleEditActivityChange}
-              />
-            </div>
-
-            <div className="auth-field">
-              <label>Тип оплаты</label>
-              <select
-                name="payment_type"
-                value={editActivityForm.payment_type}
-                onChange={handleEditActivityChange}
-              >
-                <option value="monthly">Ежемесячно</option>
-                <option value="per_lesson">За занятие</option>
-                <option value="free">Бесплатно</option>
-              </select>
-            </div>
-
-            <div className="auth-field">
-              <label>Вместимость</label>
-              <input
-                type="number"
-                name="capacity"
-                value={editActivityForm.capacity}
-                onChange={handleEditActivityChange}
-              />
-            </div>
-
-            <div className="auth-field">
-              <label style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <div className="center-form-grid">
+              <div className="center-field">
+                <label>Название</label>
                 <input
-                  type="checkbox"
-                  name="is_active"
-                  checked={editActivityForm.is_active}
+                  className="center-input"
+                  type="text"
+                  name="title"
+                  value={editActivityForm.title}
                   onChange={handleEditActivityChange}
                 />
-                Кружок активен
-              </label>
+              </div>
+
+              <div className="center-field">
+                <label>Категория</label>
+                <input
+                  className="center-input"
+                  type="text"
+                  name="category"
+                  value={editActivityForm.category}
+                  onChange={handleEditActivityChange}
+                />
+              </div>
+
+              <div className="center-field">
+                <label>Возраст от</label>
+                <input
+                  className="center-input"
+                  type="number"
+                  name="age_min"
+                  value={editActivityForm.age_min}
+                  onChange={handleEditActivityChange}
+                />
+              </div>
+
+              <div className="center-field">
+                <label>Возраст до</label>
+                <input
+                  className="center-input"
+                  type="number"
+                  name="age_max"
+                  value={editActivityForm.age_max}
+                  onChange={handleEditActivityChange}
+                />
+              </div>
+
+              <div className="center-field center-field-wide">
+                <label>Краткое описание</label>
+                <input
+                  className="center-input"
+                  type="text"
+                  name="short_description"
+                  value={editActivityForm.short_description}
+                  onChange={handleEditActivityChange}
+                />
+              </div>
+
+              <div className="center-field center-field-wide">
+                <label>Описание</label>
+                <textarea
+                  className="center-textarea"
+                  name="description"
+                  value={editActivityForm.description}
+                  onChange={handleEditActivityChange}
+                />
+              </div>
+
+              <div className="center-field">
+                <label>Цена</label>
+                <input
+                  className="center-input"
+                  type="number"
+                  name="price"
+                  value={editActivityForm.price}
+                  onChange={handleEditActivityChange}
+                />
+              </div>
+
+              <div className="center-field">
+                <label>Тип оплаты</label>
+                <select
+                  className="center-select"
+                  name="payment_type"
+                  value={editActivityForm.payment_type}
+                  onChange={handleEditActivityChange}
+                >
+                  <option value="monthly">Ежемесячно</option>
+                  <option value="per_lesson">За занятие</option>
+                  <option value="free">Бесплатно</option>
+                </select>
+              </div>
+
+              <div className="center-field">
+                <label>Вместимость</label>
+                <input
+                  className="center-input"
+                  type="number"
+                  name="capacity"
+                  value={editActivityForm.capacity}
+                  onChange={handleEditActivityChange}
+                />
+              </div>
+
+              <div className="center-field">
+                <label className="center-checkbox-label">
+                  <input
+                    type="checkbox"
+                    name="is_active"
+                    checked={editActivityForm.is_active}
+                    onChange={handleEditActivityChange}
+                  />
+                  Кружок активен
+                </label>
+              </div>
             </div>
 
-            <div style={{ marginTop: '16px' }}>
-              <h3 style={{ marginBottom: '12px' }}>Расписание занятий</h3>
+            <div className="center-sessions-block">
+              <h3>Расписание занятий</h3>
 
               {editActivityForm.sessions.map((session, index) => (
-                <div
-                  key={index}
-                  className="feature-card"
-                  style={{ marginBottom: '12px' }}
-                >
-                  <div className="auth-field">
+                <div key={index} className="center-session-card">
+                  <div className="center-field">
                     <label>День недели</label>
                     <select
+                      className="center-select"
                       value={session.weekday}
                       onChange={(e) =>
                         handleEditSessionChange(index, 'weekday', e.target.value)
@@ -1515,20 +1827,26 @@ function CenterDashboardPage() {
                     </select>
                   </div>
 
-                  <div className="auth-field">
-                    <label>Время начала</label>
+                  <div className="center-field">
+                    <label>Начало</label>
                     <input
+                      className="center-input"
                       type="time"
                       value={session.start_time}
                       onChange={(e) =>
-                        handleEditSessionChange(index, 'start_time', e.target.value)
+                        handleEditSessionChange(
+                          index,
+                          'start_time',
+                          e.target.value
+                        )
                       }
                     />
                   </div>
 
-                  <div className="auth-field">
-                    <label>Время окончания</label>
+                  <div className="center-field">
+                    <label>Конец</label>
                     <input
+                      className="center-input"
                       type="time"
                       value={session.end_time}
                       onChange={(e) =>
@@ -1541,7 +1859,16 @@ function CenterDashboardPage() {
                     <button
                       type="button"
                       className="btn btn-outline btn-sm"
-                      onClick={() => handleRemoveEditSession(index)}
+                      onClick={() =>
+                        setEditActivityForm((prev) => {
+                          if (!prev) return prev
+
+                          return {
+                            ...prev,
+                            sessions: prev.sessions.filter((_, i) => i !== index),
+                          }
+                        })
+                      }
                     >
                       Удалить слот
                     </button>
@@ -1552,7 +1879,16 @@ function CenterDashboardPage() {
               <button
                 type="button"
                 className="btn btn-secondary btn-sm"
-                onClick={handleAddEditSession}
+                onClick={() =>
+                  setEditActivityForm((prev) => {
+                    if (!prev) return prev
+
+                    return {
+                      ...prev,
+                      sessions: [...prev.sessions, createEmptySession()],
+                    }
+                  })
+                }
               >
                 + Добавить ещё день
               </button>
@@ -1577,6 +1913,59 @@ function CenterDashboardPage() {
                 Отмена
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {isFirstLoginModalOpen && (
+        <div className="modal-overlay">
+          <div className="modal-content center-password-modal">
+            <div className="modal-header">
+              <div>
+                <h2 className="modal-title">Смена пароля</h2>
+                <p className="modal-subtitle">
+                  Это первый вход в кабинет центра. Установите новый пароль.
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handlePasswordSubmit}>
+              <div className="center-field">
+                <label>Новый пароль</label>
+                <input
+                  className="center-input"
+                  type="password"
+                  value={passwordForm.password}
+                  onChange={(e) =>
+                    setPasswordForm((prev) => ({
+                      ...prev,
+                      password: e.target.value,
+                    }))
+                  }
+                />
+              </div>
+
+              <div className="center-field">
+                <label>Повторите пароль</label>
+                <input
+                  className="center-input"
+                  type="password"
+                  value={passwordForm.repeatPassword}
+                  onChange={(e) =>
+                    setPasswordForm((prev) => ({
+                      ...prev,
+                      repeatPassword: e.target.value,
+                    }))
+                  }
+                />
+              </div>
+
+              <div className="modal-actions">
+                <button type="submit" className="btn btn-primary btn-sm">
+                  Сохранить пароль
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
