@@ -17,7 +17,7 @@ export type RegisterPayload = {
 export async function login(
   email: string,
   password: string,
-  role: UserRole
+  role?: UserRole
 ): Promise<AuthData> {
   const response = await fetch(`${API_BASE}/api/auth/login`, {
     method: 'POST',
@@ -27,7 +27,7 @@ export async function login(
     body: JSON.stringify({
       email,
       password,
-      role,
+      ...(role ? { role } : {}),
     }),
   })
 

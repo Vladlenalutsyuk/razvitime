@@ -10,12 +10,21 @@ import PublicCenterPage from '../../pages/PublicCenterPage/PublicCenterPage'
 import ProtectedRoute from '../../components/ProtectedRoute/ProtectedRoute'
 import ToastProvider from '../../components/ui/ToastProvider/ToastProvider'
 import CenterApplicationPage from '../../pages/CenterApplicationPage/CenterApplicationPage'
+import AdminDashboardPage from '../../pages/AdminDashboardPage/AdminDashboardPage'
 
 function AppRouter() {
   return (
     <BrowserRouter>
       <ToastProvider>
         <Routes>
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute allowedRole="admin">
+                <AdminDashboardPage />
+              </ProtectedRoute>
+            }
+          />
           <Route path="/" element={<HomePage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />

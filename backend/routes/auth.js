@@ -1,3 +1,4 @@
+//D:\Data USER\Desktop\razvitime\backend\routes\auth.js
 const express = require('express')
 const router = express.Router()
 const db = require('../db')
@@ -67,7 +68,7 @@ router.post('/login', async (req, res) => {
     )
 
     res.json({
-      token: `demo-token-${user.id}`,
+      token: `demo-${user.role}-${user.id}`,
       user: {
         id: user.id,
         email: user.email,

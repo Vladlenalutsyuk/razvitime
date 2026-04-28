@@ -1,3 +1,4 @@
+//D:\Data USER\Desktop\razvitime\client\src\pages\LoginPage\LoginPage.tsx
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import Header from '../../components/layout/Header/Header'
@@ -12,7 +13,7 @@ function LoginPage() {
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [role, setRole] = useState<'parent' | 'center_admin'>('parent')
+  const [role, setRole] = useState<'parent' | 'center_admin' | 'admin'>('parent')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
@@ -20,7 +21,9 @@ function LoginPage() {
     e.preventDefault()
     setError('')
 
-    if (!email.trim() || !password.trim()) {
+    const trimmedEmail = email.trim().toLowerCase()
+
+    if (!trimmedEmail || !password.trim()) {
       setError('Введите email и пароль')
       showToast('Введите email и пароль', { type: 'error' })
       return
@@ -29,7 +32,10 @@ function LoginPage() {
     try {
       setSubmitting(true)
 
-      const data = await login(email.trim(), password, role)
+      const loginRole =
+        trimmedEmail === 'admin_demo@example.com' ? 'admin' : role
+
+      const data = await login(trimmedEmail, password, loginRole)
 
       localStorage.setItem('razvitime_auth', JSON.stringify(data))
 
@@ -42,6 +48,11 @@ function LoginPage() {
 
       if (data.user.role === 'center_admin') {
         navigate('/center', { replace: true })
+        return
+      }
+
+      if (data.user.role === 'admin') {
+        navigate('/admin', { replace: true })
         return
       }
 

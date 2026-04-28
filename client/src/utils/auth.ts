@@ -1,5 +1,4 @@
-//D:\Data USER\Desktop\razvitime\client\src\utils\auth.ts
-export type UserRole = 'parent' | 'center_admin'
+export type UserRole = 'parent' | 'center_admin' | 'admin'
 
 export type AuthData = {
   token: string
@@ -12,15 +11,16 @@ export type AuthData = {
     center_id?: number | null
     center_name?: string | null
     name?: string | null
+    email?: string | null
+    phone?: string | null
+    profile?: unknown
   }
 }
 
 export function getAuth(): AuthData | null {
   const raw = localStorage.getItem('razvitime_auth')
 
-  if (!raw) {
-    return null
-  }
+  if (!raw) return null
 
   try {
     return JSON.parse(raw)
